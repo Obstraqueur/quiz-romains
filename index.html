@@ -389,7 +389,7 @@ const PROGRAMME = [
   { id: 'trous', titre: 'Texte à trous progressif', parts: [{ mode: 'self', gen: 'trous' }],
     consigne: 'Sur ton téléphone. Complète les mots cachés, verset par verset.' },
   { id: 'initiales', titre: 'Premières lettres', parts: [{ mode: 'oral', gen: 'initiales', tours: 'initiales_tours' }],
-    consigne: 'À voix haute, chacun son tour. Récite le verset à partir des premières lettres.' },
+    consigne: 'À voix haute, chacun son tour. On affiche seulement les premières lettres : trouve de quel verset il s’agit, donne son numéro et récite-le.' },
   { id: 'suivant', titre: 'Le verset suivant', parts: [{ mode: 'oral', gen: 'suivant', tours: 'suivant_tours' }],
     consigne: 'À voix haute. On affiche un verset : récite le suivant (ou le précédent).' },
   { id: 'ordre', titre: 'Remets dans l’ordre', parts: [{ mode: 'self', gen: 'ordre' }],
@@ -806,7 +806,7 @@ function countdownHTML(t0, sec) {
 function promptHTML(q, mode) {
   switch (q.k) {
     case 'num2verse': return `<span class="chip">${esc(q.t)}</span><div class="huge">Verset ${q.n}</div><div class="instr">Récite ce verset mot pour mot</div>`;
-    case 'initiales': return `<span class="chip">${esc(q.t)} · v${q.n}</span><div class="initials">${esc(initials(V(q.t, q.n)))}</div><div class="instr">Récite le verset à partir des premières lettres</div>`;
+    case 'initiales': return `<span class="chip">${esc(q.t)}</span><div class="initials">${esc(initials(V(q.t, q.n)))}</div><div class="instr">Quel est ce verset ? Donne son numéro et récite-le.</div>`;
     case 'suivant': return `<span class="chip">${esc(q.t)}</span><div class="verse">${esc(V(q.t, q.n))}</div><div class="instr"><b>${q.d > 0 ? '⬇ Récite le verset SUIVANT' : '⬆ Récite le verset PRÉCÉDENT'}</b></div>`;
     case 'v2num': return `<span class="chip">${esc(q.t)}</span><div class="verse">${esc(V(q.t, q.n))}</div><div class="instr">Quel est le numéro de ce verset ?</div>`;
     case 'premdern': return `<span class="chip">${esc(q.t)}</span><div class="huge">Verset ${q.n}</div><div class="instr">Quel est le <b>${q.w.toUpperCase()}</b> mot ?</div>`;
@@ -817,7 +817,8 @@ function promptHTML(q, mode) {
 function refsHTML(keys) { return keys.map(unkey).map(x => `${esc(x.t)} v${x.n}`).join(', '); }
 function answerHTML(q) {
   switch (q.k) {
-    case 'num2verse': case 'initiales': return `<div class="verse" style="margin:0">${esc(V(q.t, q.n))}</div>`;
+    case 'num2verse': return `<div class="verse" style="margin:0">${esc(V(q.t, q.n))}</div>`;
+    case 'initiales': return `<b>Verset ${q.n}</b><div class="verse" style="margin:4px 0 0">${esc(V(q.t, q.n))}</div>`;
     case 'suivant': return `<b>v${q.n + q.d}</b> — <span class="verse">${esc(V(q.t, q.n + q.d))}</span>`;
     case 'v2num': return `<b style="font-size:24px">Verset ${q.n}</b>`;
     case 'premdern': return `<b style="font-size:24px">« ${esc(q.ans)} »</b>`;
