@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mon entraînement · Quiz biblique</title>
+<style>
+:root{
+  --bg:#f6f3ee; --card:#ffffff; --ink:#1f1d1a; --muted:#6f6a62; --line:#e4ddd2;
+  --accent:#5b4bd6; --accent-ink:#fff; --good:#1f9d55; --bad:#d64545; --warn:#c98a00;
+  --soft:#efe9df; --shadow:0 1px 2px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.06);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#16151a; --card:#211f27; --ink:#f1eee8; --muted:#a29d94; --line:#34313c;
+    --accent:#8f84ff; --accent-ink:#121016; --good:#3ecf7c; --bad:#ff6b6b; --warn:#f0b429;
+    --soft:#2a2731; --shadow:0 1px 2px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{padding:0 0 40px}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:10px 14px;min-height:44px}
+button:active{transform:translateY(1px)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button.good{background:var(--good);color:#fff;border-color:var(--good);font-weight:600}
+button.bad{background:var(--bad);color:#fff;border-color:var(--bad);font-weight:600}
+button.small{min-height:34px;padding:5px 10px;font-size:14px;border-radius:9px}
+button:disabled{opacity:.45;cursor:default}
+input,textarea,select{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+textarea{width:100%;min-height:90px;resize:vertical}
+.wrap{max-width:860px;margin:0 auto;padding:0 14px}
+#hdr{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);margin-bottom:12px}
+.hdr{display:flex;align-items:center;gap:10px;padding:10px 0}
+.hdr h1{font-size:17px;margin:0;flex:1;line-height:1.2}
+.hdr h1 small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--bad);display:inline-block}
+.dot.on{background:var(--good)}
+.me{font-size:13px;color:var(--muted);text-align:right}
+.me a{color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow);margin-bottom:12px}
+h2{font-size:20px;margin:0 0 8px}
+h3{font-size:16px;margin:14px 0 6px}
+.muted{color:var(--muted)}
+.chip{display:inline-block;background:var(--soft);border-radius:999px;padding:3px 12px;font-size:14px;font-weight:600}
+.huge{font-size:40px;font-weight:800;margin:8px 0;line-height:1.1}
+.words{font-size:30px}
+.instr{color:var(--muted);margin-top:6px}
+.verse{font-size:19px;line-height:1.55;margin:10px 0}
+.initials{font:600 24px/1.6 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.06em;margin:10px 0;word-spacing:.25em}
+.answer{margin-top:12px;padding:12px;border-radius:12px;background:var(--soft)}
+.verdict{margin-top:10px;font-weight:700;font-size:18px}
+.verdict.ok{color:var(--good)} .verdict.ko{color:var(--bad)}
+.turnhdr{display:flex;justify-content:space-between;color:var(--muted);font-size:14px;margin-bottom:6px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.grow{flex:1}
+.pname{display:inline-flex;align-items:center;gap:6px;font-weight:600}
+.pname i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.cd{margin-top:12px}
+.cdbar{height:10px;border-radius:99px;background:var(--soft);overflow:hidden}
+.cdbar i{display:block;height:100%;background:var(--accent);width:100%}
+.cd.late .cdbar i{background:var(--bad)}
+.cdt{display:block;text-align:center;font-size:22px;font-variant-numeric:tabular-nums;margin-top:4px}
+table.board{width:100%;border-collapse:collapse}
+table.board td{padding:8px 6px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+table.board td.t{text-align:right;font-weight:700;font-size:18px}
+.st-ok{color:var(--good);font-weight:700} .st-ko{color:var(--bad);font-weight:700} .st-wait{color:var(--muted)}
+.grid{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.grid button{min-width:52px;min-height:52px;font-size:18px;font-weight:700;padding:6px}
+.grid button.sel{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.grid button.right{background:var(--good);color:#fff;border-color:var(--good)}
+.grid button.wrong{background:var(--bad);color:#fff;border-color:var(--bad)}
+.opts{display:grid;gap:10px;margin-top:10px}
+.opts button{font-size:20px;min-height:56px}
+.opts button.right{background:var(--good);color:#fff;border-color:var(--good)}
+.opts button.wrong{background:var(--bad);color:#fff;border-color:var(--bad)}
+.trous{line-height:2.3}
+.trous .w{white-space:nowrap}
+input.blank{padding:2px 4px;border-radius:6px;font-size:17px;min-width:2em;text-align:center;border:1.5px dashed var(--accent);background:var(--soft)}
+.good{color:var(--good);font-weight:600} .bad{color:var(--bad);font-weight:600}
+.bad s{opacity:.7}
+.tapw{display:inline-block;padding:7px 6px;margin:2px 0;border-radius:6px;border:1px solid transparent;cursor:pointer}
+.tapw:hover{border-color:var(--line)}
+.tapw.picked{background:var(--accent);color:var(--accent-ink)}
+.tapw.right{background:var(--good);color:#fff}
+.tapw.wrong{background:var(--bad);color:#fff}
+.ocard{border:1px solid var(--line);border-radius:12px;padding:10px 12px 10px 48px;margin:8px 0;position:relative;cursor:pointer;background:var(--card)}
+.ocard .num{position:absolute;left:10px;top:10px;width:28px;height:28px;border-radius:50%;border:2px dashed var(--line);display:flex;align-items:center;justify-content:center;font-weight:700}
+.ocard.sel .num{background:var(--accent);color:var(--accent-ink);border:none}
+.ocard.ok{border-color:var(--good)} .ocard.ko{border-color:var(--bad)}
+.bigcard{width:150px;height:200px;border-radius:18px;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-size:72px;font-weight:800;margin:10px auto;box-shadow:var(--shadow)}
+.bigcard.err{background:var(--bad);color:#fff}
+.bigcard.empty{background:var(--soft);color:var(--muted)}
+.seq{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.mini{background:var(--soft);border-radius:8px;padding:3px 9px;font-weight:700;font-variant-numeric:tabular-nums}
+.mini.err{background:var(--bad);color:#fff}
+.mini sub{font-weight:400;font-size:10px;margin-left:2px}
+.mindtop{display:flex;justify-content:space-between;font-size:18px;font-weight:700}
+.msg{text-align:center;color:var(--bad);font-weight:700;margin-top:8px}
+.hand{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:10px 0}
+.hand button{width:76px;height:104px;font-size:32px;font-weight:800;border-radius:14px}
+.hand button:disabled{opacity:1}
+.wrap.lay{display:flex;flex-direction:column}
+.wrap.lay>#ban{order:0}.wrap.lay>#shared{order:2}.wrap.lay>#mine{order:1}.wrap.lay>#ctrlFixed{order:3}.wrap.lay>#ctrl{order:4}.wrap.lay>#conn{order:5}.wrap.lay>#settings{order:6}.wrap.lay>#scores{order:7}
+.wrap.lay.mine-after>#mine{order:3}
+.hand button.sel{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.login{display:grid;gap:10px;margin-top:20px}
+.login button{font-size:20px;min-height:58px;text-align:left;padding-left:18px}
+.prog{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:center}
+.prog input{width:70px}
+.params{display:grid;grid-template-columns:1fr 80px;gap:6px 10px;align-items:center;font-size:14px}
+.params input{width:80px}
+details summary{cursor:pointer;font-weight:600;padding:6px 0}
+.steplist{display:grid;gap:6px}
+.steplist button{text-align:left;display:flex;gap:8px;align-items:center}
+.steplist button.cur{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
+.scores{display:flex;flex-wrap:wrap;gap:8px}
+.scores .s{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:14px}
+.banner{background:var(--warn);color:#1f1d1a;padding:8px 12px;border-radius:10px;margin-bottom:10px;font-size:14px}
+.admin-ans{border-left:4px solid var(--accent);padding:8px 12px;background:var(--soft);border-radius:8px;margin:8px 0}
+.hint{font-size:13px;color:var(--muted)}
+body.table{font-size:20px}
+body.table .verse{font-size:26px}
+body.table .huge{font-size:64px}
+body.table .wrap{max-width:1200px}
+body.table .bigcard{width:220px;height:300px;font-size:110px}
+.fav{border-left:4px solid var(--accent);padding-left:10px}
+.qcard{font-size:22px;font-weight:600}
+</style>
+<style>
+.home-hero{padding:18px 0 6px}
+.home-hero h1{font-size:24px;margin:0 0 4px;text-wrap:balance}
+.streak{display:inline-flex;gap:6px;align-items:center;background:var(--soft);border-radius:999px;padding:4px 12px;font-weight:700;font-size:14px}
+.exlist{display:grid;gap:10px}
+.ex{display:flex;gap:12px;align-items:center;text-align:left;width:100%;padding:12px 14px;border-radius:14px}
+.ex .ico{font-size:24px;width:34px;text-align:center;flex:none}
+.ex .txt{flex:1;min-width:0}
+.ex .txt b{display:block;font-size:16px}
+.ex .txt span{display:block;font-size:13px;color:var(--muted);line-height:1.3}
+.ex .best{font-size:13px;font-weight:700;color:var(--muted);flex:none}
+.ex.defi{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.ex.defi .txt span,.ex.defi .best{color:var(--accent-ink);opacity:.85}
+.sec-title{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:18px 0 8px;font-weight:700}
+.topbar{display:flex;align-items:center;gap:10px;padding:10px 0}
+.topbar .grow{font-weight:600}
+.progress{height:6px;background:var(--soft);border-radius:99px;overflow:hidden;margin-bottom:12px}
+.progress i{display:block;height:100%;background:var(--accent)}
+.assess{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.revoir{display:flex;flex-wrap:wrap;gap:6px}
+.revoir .mini{cursor:pointer}
+.bigscore{font-size:48px;font-weight:800;line-height:1}
+.miss{border-top:1px solid var(--line);padding:10px 0}
+.lvl{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.lvl button.sel{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+</style>
+</head>
+<body>
+<div id="app" class="wrap"></div>
+<script>
+'use strict';
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  ENTRAÎNEMENT PERSO — un lien par jeune : perso.html?moi=Joyce ║
+// ╚══════════════════════════════════════════════════════════════╝
+const JOUEURS = ['Joyce', 'Ruth', 'Romane', 'Terence', 'Louise'];
+const TEXTE_DE = { Joyce: ['Romains 2'], Ruth: ['Romains 12'], Romane: ['Romains 13', 'Colossiens 3'], Terence: ['Romains 14'], Louise: ['Romains 15'] };
+// progression proposée au premier lancement (chacun la change ensuite dans l'app)
+const PROGRESSION = { Joyce: { 'Romains 2': 16 }, Ruth: { 'Romains 12': 14 }, Romane: { 'Romains 13': 14, 'Colossiens 3': 5 }, Terence: { 'Romains 14': 16 }, Louise: { 'Romains 15': 18 } };
+const PARAMS = { ordre_fois: 1, ordre_nb: 5, erreur_fois: 1, trous_pct1: 50, trous_pct2: 80 };
+const EN_LIGNE = [], ANIMATEUR = '', SALLE = 'perso', BROKERS = [];
+const TEXTES = {"Romains 2": ["Qui que tu sois, homme, toi qui juges, tu es donc inexcusable. En effet, en jugeant les autres tu te condamnes toi-même, puisque toi qui juges tu agis comme eux.", "Nous savons que le jugement de Dieu contre ceux qui agissent ainsi est conforme à la vérité.", "Et penses-tu, toi qui juges les auteurs de tels actes et qui les fais aussi, que tu échapperas au jugement de Dieu?", "Ou méprises-tu les richesses de sa bonté, de sa patience et de sa générosité en ne reconnaissant pas que la bonté de Dieu te pousse à changer d’attitude?", "Par ton endurcissement et ton refus de te repentir, tu t'amasses un trésor de colère pour le jour où Dieu révélera sa colère et son juste jugement.", "Il traitera chacun conformément à ses actes :", "à ceux qui, par leur persévérance à faire le bien, recherchent l'honneur, la gloire et l'incorruptibilité, il donnera la vie éternelle;", "mais il réserve son indignation et sa colère à ceux qui, par esprit de révolte, rejettent la vérité et obéissent à l'injustice.", "La détresse et l’angoisse atteindront tout être humain qui fait le mal, le Juif d’abord, mais aussi le non-Juif.", "La gloire, l’honneur et la paix seront pour tout homme qui fait le bien, le Juif d’abord, mais aussi le non-Juif,", "car devant Dieu il n'y a pas de favoritisme.", "Tous ceux qui ont péché sans la loi périront aussi sans la loi, et tous ceux qui ont péché sous la loi seront jugés au moyen de la loi.", "En effet, ce ne sont pas ceux qui écoutent la loi qui sont justes devant Dieu, mais ce sont ceux qui la mettent en pratique qui seront déclarés justes.", "Quand des non-Juifs qui n'ont pas la loi font naturellement ce que prescrit la loi, ils se tiennent lieu de loi à eux-mêmes, bien qu'ils n'aient pas la loi.", "Ils montrent que l'œuvre de la loi est écrite dans leur cœur, car leur conscience en rend témoignage et leurs pensées les accusent ou les défendent tour à tour.", "C'est ce qui paraîtra le jour où, conformément à l’Evangile que je prêche, Dieu jugera par Jésus-Christ le comportement secret des hommes.", "Toi qui te donnes le nom de Juif, tu te reposes sur la loi, tu places ta fierté dans ton Dieu,", "tu connais sa volonté et tu discernes ce qui est important, car tu es instruit par la loi.", "Tu es convaincu d'être le conducteur des aveugles, la lumière de ceux qui sont dans les ténèbres,", "l'éducateur des ignorants, le maître des enfants parce que tu possèdes dans la loi l'expression de la connaissance et de la vérité.", "Toi donc qui enseignes les autres, tu ne t'enseignes pas toi-même! Toi qui prêches de ne pas voler, tu voles!", "Toi qui dis de ne pas commettre d'adultère, tu commets l'adultère! Toi qui as les idoles en horreur, tu pilles les temples!", "Toi qui places ta fierté dans la loi, tu déshonores Dieu en la transgressant!", "En effet, le nom de Dieu est blasphémé parmi les nations à cause de vous, comme cela est écrit.", "Certes, la circoncision est utile si tu mets en pratique la loi; mais si tu la violes, ta circoncision devient incirconcision.", "Si donc l'incirconcis respecte les commandements de la loi, son incirconcision ne sera-t-elle pas comptée comme circoncision?", "Ainsi, l'homme qui accomplit la loi sans être circoncis physiquement ne te condamnera-t-il pas, toi qui la transgresses tout en ayant la loi écrite et la circoncision?", "Le Juif, ce n'est pas celui qui en a l’apparence, et la circoncision, ce n'est pas celle qui est visible dans le corps.", "Mais le Juif, c'est celui qui l'est intérieurement, et la circoncision, c'est celle du cœur, accomplie par l'Esprit et non par la loi écrite. La louange que reçoit ce Juif ne vient pas des hommes, mais de Dieu."], "Romains 12": ["Je vous encourage donc, frères et sœurs, par les compassions de Dieu, à offrir votre corps comme un sacrifice vivant, saint, agréable à Dieu. Ce sera de votre part un culte raisonnable.", "Ne vous conformez pas au monde actuel, mais soyez transformés par le renouvellement de l’intelligence afin de discerner quelle est la volonté de Dieu, ce qui est bon, agréable et parfait.", "Par la grâce qui m'a été donnée, je dis à chacun de vous de ne pas avoir une trop haute opinion de lui-même, mais de garder des sentiments modestes, chacun selon la mesure de foi que Dieu lui a donnée.", "En effet, de même que nous avons plusieurs membres dans un seul corps et que tous les membres n'ont pas la même fonction,", "de même, nous qui sommes plusieurs, nous formons un seul corps en Christ et nous sommes tous membres les uns des autres, chacun pour sa part.", "Nous avons des dons différents, selon la grâce qui nous a été accordée. Si quelqu’un a le don de prophétie, qu'il l'exerce en accord avec la foi;", "si un autre est appelé à servir, qu'il se consacre à son service. Que celui qui enseigne se donne à son enseignement,", "et celui qui a le don d’encourager à l'encouragement. Que celui qui donne le fasse avec générosité, celui qui préside, avec zèle, et que celui qui exerce la bienveillance le fasse avec joie.", "Que l'amour soit sans hypocrisie. Ayez le mal en horreur, attachez-vous au bien.", "Par amour fraternel soyez pleins d'affection les uns pour les autres et rivalisez d'estime réciproque.", "Ayez du zèle, et non de la paresse. Soyez fervents d'esprit et servez le Seigneur.", "Réjouissez-vous dans l'espérance et soyez patients dans la détresse. Persévérez dans la prière.", "Pourvoyez aux besoins des saints et exercez l'hospitalité avec empressement.", "Bénissez ceux qui vous persécutent, bénissez et ne maudissez pas.", "Réjouissez-vous avec ceux qui se réjouissent, pleurez avec ceux qui pleurent.", "Vivez en plein accord les uns avec les autres. N'aspirez pas à ce qui est élevé, mais laissez-vous attirer par ce qui est humble. Ne vous prenez pas pour des sages.", "Ne rendez à personne le mal pour le mal. Recherchez ce qui est bien devant tous les hommes.", "Si cela est possible, dans la mesure où cela dépend de vous, soyez en paix avec tous les hommes.", "Ne vous vengez pas vous-mêmes, bien-aimés, mais laissez agir la colère de Dieu, car il est écrit: C’est à moi qu’appartient la vengeance, c’est moi qui donnerai à chacun ce qu’il mérite, dit le Seigneur.", "Mais si ton ennemi a faim, donne-lui à manger, s'il a soif, donne-lui à boire, car en agissant ainsi, tu amasseras des charbons ardents sur sa tête.", "Ne te laisse pas vaincre par le mal, mais sois vainqueur du mal par le bien."], "Romains 13": ["Que chacun se soumette aux autorités qui nous gouvernent, car toute autorité vient de Dieu, et celles qui existent ont été établies par Dieu.", "C'est pourquoi celui qui s'oppose à l'autorité résiste à l'ordre que Dieu a établi, et ceux qui résistent attireront une condamnation sur eux-mêmes.", "En effet, on n’a pas à craindre les magistrats quand on fait le bien, mais quand on fait le mal. Veux-tu ne pas avoir à craindre l'autorité? Fais le bien et tu auras son approbation,", "car le magistrat est serviteur de Dieu pour ton bien. Mais si tu fais le mal, sois dans la crainte. En effet, ce n'est pas pour rien qu'il porte l'épée, puisqu'il est serviteur de Dieu pour manifester sa colère en punissant celui qui fait le mal.", "Il est donc nécessaire de se soumettre aux autorités, non seulement à cause de cette colère, mais encore par motif de conscience.", "C'est aussi pour cela que vous payez des impôts, car les magistrats sont des serviteurs de Dieu qui s'appliquent entièrement à cette fonction.", "Rendez à chacun ce qui lui est dû: l'impôt à qui vous devez l'impôt, la taxe à qui vous devez la taxe, le respect à qui vous devez le respect, l'honneur à qui vous devez l'honneur.", "Ne devez rien à personne, si ce n'est de vous aimer les uns les autres, car celui qui aime les autres a accompli la loi.", "En effet, les commandements: Tu ne commettras pas d'adultère, tu ne commettras pas de meurtre, tu ne commettras pas de vol, tu ne porteras pas de faux témoignage, tu ne convoiteras pas, ainsi que tous les autres, se résument dans cette parole: Tu aimeras ton prochain comme toi-même.", "L'amour ne fait pas de mal au prochain; l'amour est donc l'accomplissement de la loi.", "Cela est d'autant plus important que vous savez quel temps nous vivons: c'est l'heure de vous réveiller enfin du sommeil, car maintenant le salut est plus près de nous qu’au moment où nous avons cru.", "La nuit est bien avancée, le jour approche. Débarrassons-nous donc des œuvres des ténèbres et revêtons les armes de la lumière.", "Conduisons-nous honnêtement, comme en plein jour, sans orgies ni ivrognerie, sans immoralité ni débauche, sans dispute ni jalousie.", "Mais revêtez-vous du Seigneur Jésus-Christ et ne vous préoccupez pas de votre nature propre pour satisfaire ses convoitises."], "Colossiens 3": ["Si donc vous êtes ressuscités avec Christ, recherchez les choses d'en haut, où Christ est assis à la droite de Dieu.", "Attachez-vous aux réalités d'en haut, et non à celles qui sont sur la terre.", "En effet, vous avez connu la mort et votre vie est cachée avec Christ en Dieu.", "Quand Christ, notre vie, apparaîtra, alors vous apparaîtrez aussi avec lui dans la gloire.", "Faites donc mourir en vous ce qui est terrestre: l’immoralité sexuelle, l'impureté, les passions, les mauvais désirs et la soif de posséder, qui est une idolâtrie.", "C'est à cause de cela que la colère de Dieu vient [sur les hommes rebelles].", "Vous aussi autrefois, lorsque vous viviez parmi eux, vous marchiez dans ces péchés.", "Mais maintenant, renoncez à tout cela, à la colère, à la fureur, à la méchanceté, à la calomnie, aux grossièretés qui pourraient sortir de votre bouche.", "Ne vous mentez pas les uns aux autres, car vous vous êtes dépouillés du vieil homme et de ses manières d’agir,", "vous avez revêtu l'homme nouveau qui se renouvelle pour parvenir à la vraie connaissance, conformément à l'image de celui qui l'a créé.", "Il n'y a plus ni Juif ni non-Juif, ni circoncis ni incirconcis, ni étranger, ni sauvage, ni esclave ni homme libre, mais Christ est tout et en tous.", "Ainsi donc, en tant qu’êtres choisis par Dieu, saints et bien-aimés, revêtez-vous de sentiments de compassion, de bonté, d'humilité, de douceur, de patience.", "Supportez-vous les uns les autres et, si l'un de vous a une raison de se plaindre d’un autre, pardonnez-vous réciproquement. Tout comme Christ vous a pardonné, pardonnez-vous aussi.", "Mais par-dessus tout cela, revêtez-vous de l'amour, qui est le lien de la perfection.", "Que la paix de Christ, à laquelle vous avez été appelés pour former un seul corps, règne dans votre cœur. Et soyez reconnaissants.", "Que la parole de Christ habite en vous dans toute sa richesse! Instruisez-vous et avertissez-vous les uns les autres en toute sagesse par des psaumes, par des hymnes, par des cantiques spirituels, chantez pour le Seigneur de tout votre cœur sous l'inspiration de la grâce.", "Et quoi que vous fassiez, en parole ou en acte, faites tout au nom du Seigneur Jésus en exprimant par lui votre reconnaissance à Dieu le Père."], "Romains 14": ["Accueillez celui qui est faible dans la foi sans discuter ses opinions.", "L'un a la conviction de pouvoir manger de tout; l'autre, qui est faible dans la foi, ne mange que des légumes.", "Que celui qui mange de tout ne méprise pas celui qui ne le fait pas, et que celui qui ne mange pas de tout ne juge pas celui qui le fait, car Dieu l'a accueilli.", "Qui es-tu pour juger le serviteur d'un autre? Qu'il tienne bon ou qu'il tombe, cela regarde son seigneur. Mais il tiendra bon, car Dieu a le pouvoir de l'affermir.", "L'un fait une différence entre les jours, un autre les estime tous égaux. Que chacun ait dans son esprit une pleine conviction.", "Celui qui fait une distinction entre les jours le fait pour le Seigneur [et celui qui ne fait pas de distinction le fait aussi pour le Seigneur]. Celui qui mange de tout, c’est pour le Seigneur qu’il le fait, puisqu’il exprime sa reconnaissance à Dieu. Celui qui ne mange pas de tout le fait aussi pour le Seigneur, et il est reconnaissant envers Dieu.", "En effet, aucun de nous ne vit pour lui-même et aucun ne meurt pour lui-même:", "si nous vivons, c'est pour le Seigneur que nous vivons, et si nous mourons, c'est pour le Seigneur que nous mourons. Ainsi, soit que nous vivions, soit que nous mourions, nous appartenons au Seigneur.", "En effet, Christ est mort et [il est ressuscité,] il est revenu à la vie pour être le Seigneur des morts et des vivants.", "Mais toi, pourquoi juges-tu ton frère? Ou toi, pourquoi méprises-tu ton frère? Nous comparaîtrons tous, en effet, devant le tribunal de Christ,", "car il est écrit: Je suis vivant, dit le Seigneur, chacun pliera le genou devant moi et toute langue rendra gloire à Dieu.", "Ainsi donc, chacun de nous rendra compte à Dieu pour lui-même.", "Ne nous jugeons donc plus les uns les autres, mais veillez plutôt à ne pas placer d’obstacle ou de piège devant votre frère.", "Je sais et je suis convaincu dans le Seigneur Jésus que rien n'est impur en soi, mais si quelqu’un considère telle chose comme impure, alors elle est impure pour lui.", "Si ton frère est attristé à cause de ce que tu manges, tu ne marches plus selon l'amour. Ne cause pas, par ta nourriture, la perte de celui pour lequel Christ est mort.", "Que ce qui est bon pour vous ne devienne pas un sujet de calomnie.", "En effet, le royaume de Dieu, ce n'est pas le manger et le boire, mais la justice, la paix et la joie, par le Saint-Esprit.", "Celui qui sert Christ de cette manière est agréable à Dieu et approuvé des hommes.", "Ainsi donc, recherchons ce qui contribue à entretenir la paix et à nous faire grandir mutuellement dans la foi.", "Pour de la nourriture, ne détruis pas l'œuvre de Dieu. Certes, tout est pur, mais il est mal de manger quelque chose si cela représente un obstacle pour quelqu’un.", "Il est bien de ne pas manger de viande, de ne pas boire de vin et de t'abstenir de ce qui peut être pour ton frère un obstacle, [un piège ou une source de faiblesse].", "Cette foi que tu as, garde-la pour toi devant Dieu. Heureux celui qui ne se condamne pas lui-même par ce qu'il approuve!", "Mais celui qui a des doutes au sujet de ce qu'il mange est condamné, parce qu'il n'agit pas par une conviction de foi. Tout ce qui ne provient pas d’une conviction de foi est péché."], "Romains 15": ["Nous qui sommes forts, nous avons le devoir de supporter les faiblesses de ceux qui ne le sont pas et de ne pas rechercher ce qui nous plaît.", "Que chacun de nous cherche à plaire à son prochain pour son bien, en vue de le faire grandir dans la foi.", "En effet, Christ n'a pas recherché ce qui lui plaisait, mais, comme il est écrit, les injures de ceux qui t'insultent sont tombées sur moi.", "Or tout ce qui a été écrit d'avance l'a été pour notre instruction afin que, par la persévérance et par le réconfort que donnent les Ecritures, nous possédions l'espérance.", "Que le Dieu de la persévérance et du réconfort vous donne de vivre en plein accord les uns avec les autres comme le veut Jésus-Christ,", "afin que tous ensemble, d'une seule voix, vous rendiez gloire au Dieu et Père de notre Seigneur Jésus-Christ.", "Accueillez-vous donc les uns les autres comme Christ vous a accueillis, pour la gloire de Dieu.", "J’affirme [en effet] que [Jésus-]Christ est devenu le serviteur des circoncis pour prouver que Dieu est vrai en confirmant les promesses faites à leurs ancêtres.", "Quant aux non-Juifs, ils célèbrent Dieu à cause de sa bonté, comme le dit l’Ecriture: C'est pourquoi je te louerai parmi les nations et je chanterai à la gloire de ton nom.", "Il est dit encore: Nations, réjouissez-vous avec son peuple!", "et encore: Louez le Seigneur, vous toutes les nations, célébrez-le, vous tous les peuples!", "Esaïe dit aussi: Il paraîtra, le rejeton d'Isaï, il se lèvera pour régner sur les nations; les nations espéreront en lui", "Que le Dieu de l'espérance vous remplisse de toute joie et de toute paix dans la foi, pour que vous débordiez d’espérance, par la puissance du Saint-Esprit!", "En ce qui vous concerne, mes frères et sœurs, je suis personnellement convaincu que vous êtes pleins de bonnes dispositions, remplis de toute connaissance et capables de vous avertir les uns les autres.", "Cependant, [frères et sœurs,] c’est avec une certaine audace que je vous ai écrit par endroits, comme pour réveiller vos souvenirs, et cela à cause de la grâce que Dieu m'a faite", "d'être serviteur de Jésus-Christ pour les non-Juifs. Je m'acquitte ainsi du service sacré de la prédication de l'Evangile de Dieu afin que les non-Juifs soient une offrande agréable, devenue sainte par l’action de l'Esprit saint.", "Je peux donc me montrer fier en Jésus-Christ de l'œuvre de Dieu.", "En effet, je n'oserais rien mentionner si Christ ne l’avait pas accompli par moi pour amener les non-Juifs à l'obéissance par la parole et par les actes,", "par la puissance des signes et des prodiges et par la puissance de l'Esprit de Dieu. Ainsi, depuis Jérusalem et en rayonnant jusqu'en Illyrie, j'ai abondamment propagé l'Evangile de Christ.", "Je me suis fait un point d'honneur d'annoncer l'Evangile là où Christ n'avait pas été annoncé, afin de ne pas construire sur les fondations posées par un autre, mais comme il est écrit:", "Ceux à qui il n'avait pas été annoncé verront, et ceux qui n'en avaient pas entendu parler comprendront.", "C'est aussi ce qui m'a souvent empêché d'aller chez vous.", "Mais maintenant, comme je n'ai plus rien qui me retienne dans ces régions et que, depuis bien des années, j'ai le vif désir de vous rendre visite,", "[je le ferai] quand je me rendrai en Espagne. J'espère en effet vous voir en passant et recevoir votre aide pour me rendre là-bas une fois que j'aurai satisfait, du moins en partie, mon désir d'être avec vous.", "Maintenant je vais à Jérusalem pour servir les saints.", "En effet, les Eglises de la Macédoine et l'Achaïe ont bien voulu organiser une collecte en faveur de ceux qui sont pauvres parmi les saints de Jérusalem.", "Elles l'ont bien voulu et elles le leur devaient, car si les non-Juifs ont eu part aux avantages spirituels des Juifs, ils doivent aussi les assister dans leurs besoins matériels.", "Dès que j'aurai réglé cette affaire et que je leur aurai remis ces dons, je partirai pour l'Espagne et je passerai chez vous.", "Je sais qu'en venant vous rendre visite, c'est avec une pleine bénédiction de [l'Evangile de] Christ que je le ferai.", "Je vous en supplie, frères et sœurs, par notre Seigneur Jésus-Christ et par l'amour de l'Esprit, combattez avec moi en adressant à Dieu des prières en ma faveur.", "Priez afin que je sois protégé des incrédules de la Judée et que l’aide que j'apporte à Jérusalem soit bien accueillie par les saints.", "Ainsi je pourrai venir chez vous dans la joie, si c'est la volonté de Dieu, et trouver un peu de repos au milieu de vous.", "Que le Dieu de la paix soit avec vous tous! Amen!"]};
+const COLORS = { Joyce: '#e76f51', Ruth: '#2a9d8f', Romane: '#9b59b6', Terence: '#3a7bd5', Louise: '#d4a017' };
+const STOP = new Set(['comme','aussi','celui','celle','ceux','cette','notre','votre','leurs','toute','toutes','tous','mais','dans','pour','avec','sont','nous','vous','elle','elles','meme','donc','ainsi','alors','autres','autre','leur','plus','tout','chacun','parce','quand','encore','entre','depuis','selon','faire','etre','avoir','quoi','dont','cela','ceci','celles','soit','sans','sous','vers','afin','quelque','quelqu','puisque','qu\'il','qu\'ils','c\'est','n\'est','l\'un']);
+const SWAPS_RAW = {
+  Dieu:'Seigneur', Seigneur:'Dieu', Christ:'Jésus', foi:'grâce', grâce:'foi', paix:'joie', joie:'paix',
+  frère:'prochain', prochain:'frère', bien:'mal', mal:'bien', loi:'parole', colère:'fureur', gloire:'louange',
+  vérité:'justice', justice:'vérité', cœur:'esprit', nations:'peuples', peuples:'nations', hommes:'gens',
+  vie:'mort', mort:'vie', amour:'bonté', bonté:'douceur', douceur:'patience', espérance:'patience', patience:'espérance',
+  saints:'frères', frères:'amis', lumière:'vérité', ténèbres:'nuit', nuit:'ténèbres', jour:'temps', corps:'esprit',
+  Juif:'Grec', jugement:'châtiment', honneur:'respect', respect:'honneur', juges:'condamnes', condamnes:'juges',
+  faibles:'pauvres', forts:'sages', persévérance:'patience', réconfort:'secours', manger:'boire', boire:'manger',
+  viande:'pain', vin:'lait', nourriture:'boisson', magistrats:'gouverneurs', autorités:'puissances', impôts:'dettes',
+  sacrifice:'offrande', offrande:'sacrifice', intelligence:'sagesse', sagesse:'intelligence', humble:'modeste',
+  ennemi:'prochain', charbons:'pierres', vengeance:'colère', hospitalité:'générosité', prière:'louange',
+  terre:'monde', haut:'ciel', compassion:'tendresse', pardonné:'aimé', reconnaissants:'joyeux', psaumes:'chants',
+  hymnes:'louanges', Père:'Fils', circoncision:'alliance', Espagne:'Italie', Jérusalem:'Rome', Macédoine:'Galatie',
+  pauvres:'faibles', collecte:'offrande', prières:'pensées', repos:'joie', accueillez:'recevez', accueilli:'reçu',
+  méprise:'juge', juge:'méprise', obstacle:'piège', piège:'obstacle', royaume:'règne', approuvé:'aimé',
+  zèle:'ardeur', service:'ministère', enseignement:'message', générosité:'bonté', affection:'tendresse',
+  détresse:'souffrance', persécutent:'haïssent', pleurent:'souffrent', sages:'savants', tête:'front',
+  consciences:'pensées', conscience:'pensée', richesses:'trésors', trésor:'réserve', éternelle:'divine',
+  ressuscités:'relevés', choses:'réalités', réalités:'choses', idolâtrie:'impureté', calomnie:'médisance',
+  homme:'être', nouveau:'neuf', perfection:'paix', parole:'loi', reconnaissance:'louange', salut:'royaume',
+  sommeil:'repos', armes:'œuvres', œuvres:'armes', honnêtement:'dignement', convoitises:'désirs',
+  Évangile:'message', Evangile:'message', prodiges:'miracles', signes:'miracles', fondations:'bases', visite:'voyage',
+};
+let SWAPS = null;
+
+// ───────────────────────── utilitaires ─────────────────────────
+const QS = new URLSearchParams(location.search);
+const ROOM = (QS.get('salle') || SALLE).replace(/[^a-zA-Z0-9_-]/g, '');
+const LOCAL = QS.has('local');
+const BROKER_LIST = QS.get('broker') ? QS.get('broker').split(',') : BROKERS;
+const BASE = 'qbentrainement/' + ROOM;
+const store = LOCAL ? sessionStorage : localStorage;
+const AKEY = 'qb_admin_' + ROOM;
+
+const $ = (s, el = document) => el.querySelector(s);
+const clone = o => JSON.parse(JSON.stringify(o));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const norm = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[’`´]/g, "'").replace(/[\[\]]/g, '').trim();
+const toks = t => t.split(/\s+/).filter(Boolean);
+const core = tok => tok.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+function splitTok(tok) { const m = tok.match(/^([^\p{L}\p{N}]*)(.*?)([^\p{L}\p{N}]*)$/u); return { pre: m[1], core: m[2], post: m[3] }; }
+const rnd = a => a[Math.floor(Math.random() * a.length)];
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const V = (t, n) => TEXTES[t][n - 1];
+const vkey = v => v.t + '|' + v.n;
+const unkey = k => { const i = k.lastIndexOf('|'); return { t: k.slice(0, i), n: +k.slice(i + 1) }; };
+const initials = text => text.replace(/(\p{L})\p{L}*/gu, '$1');
+const csNorm = (t, n) => toks(V(t, n)).map(core).filter(Boolean).map(norm);
+// pour « Mot → numéros » : on garde les accents (jugés ≠ juges), le trait d'union sépare les mots
+const normA = s => String(s ?? '').toLowerCase().replace(/[’`´]/g, "'").replace(/[\[\]]/g, '').trim();
+function motsInfo(t, n) {
+  const out = [];
+  for (const tok of toks(V(t, n))) {
+    const { core: c, post } = splitTok(tok); if (!c) { if (out.length && /[.?!:;]/.test(tok)) out[out.length - 1].brk = true; continue; }
+    const parts = c.replace(/[\[\]]/g, '').split('-').filter(Boolean);
+    parts.forEach((w, i) => out.push({ w, n: normA(w), brk: i === parts.length - 1 && /[.?!:;]/.test(post) }));
+  }
+  return out;
+}
+function seqHas(arr, sub) { outer: for (let i = 0; i <= arr.length - sub.length; i++) { for (let j = 0; j < sub.length; j++) if (arr[i + j] !== sub[j]) continue outer; return true; } return false; }
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const pn = p => `<span class="pname"><i style="background:${COLORS[p] || '#888'}"></i>${esc(p)}</span>`;
+const voisinDe = p => JOUEURS[(JOUEURS.indexOf(p) + 1) % JOUEURS.length];
+const voisinAvant = p => JOUEURS[(JOUEURS.indexOf(p) - 1 + JOUEURS.length) % JOUEURS.length];
+const stepDef = id => PROGRAMME.find(s => s.id === id);
+const fmtS = ms => (ms / 1000).toFixed(1) + ' s';
+
+// ───────────────────────── état ─────────────────────────
+let S = null;            // état partagé (publié par l'animateur)
+let ROLE = null;         // 'admin' | 'player' | 'table'
+           // prénom
+let IS_ADMIN = false;
+let adminWaiting = false;
+let OFFSET = 0, offSamples = [];  // horloge animateur - horloge locale
+let lastHb = 0;
+const lastSeen = {};
+const seenActs = new Set();
+let LOC = {};            // état local de l'écran du joueur
+const P = () => S.config.params;
+
+function poolOf(p, cfg = S.config) {
+  const out = [];
+  for (const t of TEXTE_DE[p] || []) {
+    const k = Math.max(0, Math.min(+((cfg.progression[p] || {})[t]) || 0, TEXTES[t].length));
+    for (let n = 1; n <= k; n++) out.push({ t, n });
+  }
+  return out;
+}
+const toLocal = t => IS_ADMIN ? t : t - OFFSET;
+const gridOf = p => { const g = {}; poolOf(p).forEach(v => g[v.t] = v.n); return g; };   // {texte: nb de versets appris}
+const actifs = () => JOUEURS.filter(p => !(S.config.absents || []).includes(p));
+
+// ───────────────────────── génération des questions ─────────────────────────
+function pickFrom(p, used, filt) {
+  let pl = poolOf(p); if (filt) pl = pl.filter(filt);
+  if (!pl.length) return null;
+  let fr = pl.filter(v => !used.includes(vkey(v)));
+  if (!fr.length) { for (const v of pl) { const i = used.indexOf(vkey(v)); if (i >= 0) used.splice(i, 1); } fr = pl; }
+  const v = rnd(fr); used.push(vkey(v)); return v;
+}
+function firstLast(t, n, w) { const c = toks(V(t, n)).map(core).filter(Boolean); return w === 'premier' ? c[0] : c[c.length - 1]; }
+
+const GEN = {
+  num2verse(p, u) { const v = pickFrom(p, u); return v && { k: 'num2verse', t: v.t, n: v.n }; },
+  initiales(p, u) { const v = pickFrom(p, u); return v && { k: 'initiales', t: v.t, n: v.n }; },
+  suivant(p, u) {
+    const pl = poolOf(p); const has = (t, n) => pl.some(x => x.t === t && x.n === n);
+    const v = pickFrom(p, u, x => has(x.t, x.n + 1) || has(x.t, x.n - 1)); if (!v) return null;
+    const d = rnd([1, -1].filter(d => has(v.t, v.n + d)));
+    return { k: 'suivant', t: v.t, n: v.n, d };
+  },
+  v2num(p, u) { const v = pickFrom(p, u); return v && { k: 'v2num', t: v.t, n: v.n, g: gridOf(p) }; },
+  premdern(p, u) {
+    const v = pickFrom(p, u); if (!v) return null;
+    const w = Math.random() < .5 ? 'premier' : 'dernier';
+    const ans = firstLast(v.t, v.n, w); const opts = [ans]; const seen = new Set([norm(ans)]);
+    const add = o => { if (o && !seen.has(norm(o)) && opts.length < 4) { seen.add(norm(o)); opts.push(o); } };
+    for (const x of shuffle(poolOf(p))) add(firstLast(x.t, x.n, w));
+    for (const t of TEXTE_DE[p]) for (const n of shuffle(TEXTES[t].map((_, i) => i + 1))) add(firstLast(t, n, w));
+    return { k: 'premdern', t: v.t, n: v.n, w, ans, opts: shuffle(opts) };
+  },
+  mots(p, u) {
+    const pl = poolOf(p); if (!pl.length) return null;
+    for (let tries = 0; tries < 120; tries++) {
+      const v = rnd(pl); const ws = motsInfo(v.t, v.n);
+      const L = rnd([1, 1, 2, 2, 3]); if (ws.length < L) continue;
+      const i = Math.floor(Math.random() * (ws.length - L + 1));
+      const sl = ws.slice(i, i + L); if (sl.slice(0, -1).some(x => x.brk)) continue;
+      const ph = sl.map(x => x.w); const phn = sl.map(x => x.n); const phs = phn.map(norm);
+      if (L === 1 && (phs[0].length < 5 || STOP.has(phs[0]))) continue;
+      if (L > 1 && (phs.join('').length < 8 || phs.every(x => STOP.has(x) || x.length < 4))) continue;
+      const sig = 'm:' + phn.join(' '); if (u.includes(sig) && tries < 100) continue;
+      const ans = pl.filter(x => seqHas(motsInfo(x.t, x.n).map(y => y.n), phn));
+      if (!ans.length || ans.length > 4) continue;
+      u.push(sig);
+      return { k: 'mots', T: TEXTE_DE[p].join(' + '), ph: ph.join(' '), ans: ans.map(vkey), g: gridOf(p) };
+    }
+    return null;
+  },
+};
+
+function makeError(t, n) {
+  if (!SWAPS) SWAPS = Object.fromEntries(Object.entries(SWAPS_RAW).map(([k, v]) => [norm(k), v]));
+  const ts = toks(V(t, n));
+  const inVerse = new Set(ts.map(x => norm(core(x))));
+  const isUp = s => s[0] !== s[0].toLowerCase();
+  const cand = ts.map((x, j) => ({ j, ...splitTok(x) })).filter(o => /^\p{L}{4,}$/u.test(o.core) && !STOP.has(norm(o.core)));
+  if (!cand.length) return null;
+  const swapC = cand.filter(o => SWAPS[norm(o.core)] && !inVerse.has(norm(SWAPS[norm(o.core)])));
+  let o, rep;
+  if (swapC.length && Math.random() < 0.75) {
+    o = rnd(swapC);
+    if (swapC.length > 1 && /^(dieu|seigneur)$/.test(norm(o.core)) && Math.random() < .6) o = rnd(swapC.filter(x => x !== o));
+    rep = SWAPS[norm(o.core)];
+    if (isUp(o.core) && !isUp(rep)) rep = rep[0].toUpperCase() + rep.slice(1);
+  } else {
+    const big = cand.filter(c => c.core.length >= 5); o = rnd(big.length ? big : cand);
+    const on = norm(o.core); const all = [];
+    TEXTES[t].forEach(vv => toks(vv).forEach(x => { const c = core(x); const cn = norm(c);
+      if (/^\p{L}+$/u.test(c) && c.length >= 4 && !inVerse.has(cn) && !STOP.has(cn) && isUp(c) === isUp(o.core) && Math.abs(c.length - o.core.length) <= 3) all.push(c); }));
+    const end2 = all.filter(c => norm(c).slice(-2) === on.slice(-2));
+    const end1 = all.filter(c => norm(c).slice(-1) === on.slice(-1));
+    const pool = end2.length ? end2 : end1.length ? end1 : all;
+    if (!pool.length) return null;
+    rep = rnd(pool);
+  }
+  return { t, n, j: o.j, w: o.pre + rep + o.post, orig: o.core };
+}
+
+const SELF = {
+  trous(p) {
+    const pl = poolOf(p); const cnt = {}; pl.forEach(v => cnt[v.t] = (cnt[v.t] || 0) + 1);
+    return pl.map(v => {
+      const pct = v.n <= Math.ceil(cnt[v.t] / 2) ? +P().trous_pct1 : +P().trous_pct2;
+      const ts = toks(V(v.t, v.n)); const c = ts.map((x, j) => core(x) ? j : -1).filter(j => j >= 0);
+      const k = Math.max(1, Math.round(c.length * pct / 100));
+      return { t: v.t, n: v.n, pct, m: shuffle(c).slice(0, k).sort((a, b) => a - b) };
+    });
+  },
+  ordre(p) {
+    const out = []; const bySec = {};
+    poolOf(p).forEach(v => (bySec[v.t] = bySec[v.t] || []).push(v.n));
+    const secs = Object.keys(bySec).filter(t => bySec[t].length >= 2); if (!secs.length) return out;
+    for (let f = 0; f < (+P().ordre_fois || 1); f++) {
+      const t = rnd(secs.flatMap(s => bySec[s].map(() => s))); const ns = bySec[t];
+      const L = Math.max(2, Math.min(+P().ordre_nb || 5, ns.length));
+      const s = Math.floor(Math.random() * (ns.length - L + 1)); const seq = ns.slice(s, s + L);
+      let sh = shuffle(seq); for (let g = 0; g < 50 && sh.join() === seq.join(); g++) sh = shuffle(seq);
+      if (sh.join() === seq.join()) sh = seq.slice().reverse();
+      out.push({ t, seq, sh });
+    }
+    return out;
+  },
+  erreur(p) {
+    const out = []; const u = [];
+    for (let f = 0; f < (+P().erreur_fois || 5); f++) {
+      for (let tries = 0; tries < 30; tries++) { const v = pickFrom(p, u); if (!v) break; const e = makeError(v.t, v.n); if (e) { out.push(e); break; } }
+    }
+    return out;
+  },
+};
+
+
+
+// ───────────────────────── profil ─────────────────────────
+const nm = s => norm(s).replace(/[^a-z]/g, '');
+const ME = JOUEURS.find(p => nm(p) === nm(QS.get('moi') || '')) || null;
+const SKEY = 'qb_perso_' + (ME || '');
+let ST = null;
+function loadST() {
+  let s = null; try { s = JSON.parse(localStorage.getItem(SKEY)); } catch (e) {}
+  ST = s && s.prog ? s : { prog: clone(PROGRESSION[ME] || {}), stats: {}, days: [], miss: {}, setup: false };
+  S = { config: { progression: { [ME]: ST.prog }, params: { ...PARAMS } } };
+}
+function saveST() { try { localStorage.setItem(SKEY, JSON.stringify(ST)); } catch (e) {} S.config.progression[ME] = ST.prog; }
+const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+function streak() {
+  const set = new Set(ST.days); let n = 0; const d = new Date();
+  if (!set.has(today())) d.setDate(d.getDate() - 1);
+  for (;;) { const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); if (!set.has(k)) break; n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+const poolMe = () => poolOf(ME);
+const refsHTML = keys => keys.map(unkey).map(x => `${esc(x.t)} v${x.n}`).join(', ');
+const learnedTxt = () => TEXTE_DE[ME].map(t => `${t} 1–${ST.prog[t] || 0}`).join(' · ');
+
+// ───────────────────────── exercices ─────────────────────────
+const EX = {
+  num2verse: { ico: '🔢', titre: 'Numéro → verset', desc: 'On te donne un numéro : récite le verset, puis vérifie.', n: 8 },
+  initiales: { ico: '🔤', titre: 'Premières lettres', desc: 'Seulement les initiales : trouve quel verset c’est, puis récite-le.', n: 6 },
+  suivant: { ico: '⏭️', titre: 'Le verset suivant', desc: 'Un verset s’affiche : récite le suivant ou le précédent.', n: 8 },
+  trous: { ico: '✍️', titre: 'Texte à trous', desc: 'Complète les mots cachés. Choisis ton niveau.', n: 5 },
+  ordre: { ico: '🔀', titre: 'Remets dans l’ordre', desc: 'Des versets qui se suivent sont mélangés.', n: 3 },
+  erreur: { ico: '🔎', titre: 'Trouve l’erreur', desc: 'Un mot a été changé : repère-le.', n: 5 },
+  v2num: { ico: '⏱️', titre: 'Verset → numéro', desc: 'Chrono 10 s : donne le numéro du verset.', n: 10, sec: 10 },
+  premdern: { ico: '⏱️', titre: 'Premier ou dernier mot', desc: 'Chrono 10 s : quel est le premier / dernier mot du verset N ?', n: 10, sec: 10 },
+  mots: { ico: '⏱️', titre: 'Mot → numéro(s)', desc: 'Chrono 15 s : dans quels versets se trouvent ces mots ?', n: 8, sec: 15 },
+};
+const DEFI = ['num2verse', 'initiales', 'v2num', 'premdern', 'mots', 'erreur', 'suivant', 'v2num', 'initiales', 'mots', 'premdern', 'num2verse'];
+
+function makeItem(kind, u, opt) {
+  switch (kind) {
+    case 'num2verse': case 'initiales': case 'suivant': case 'v2num': case 'premdern': case 'mots': {
+      const q = GEN[kind](ME, u); return q && { kind, q }; }
+    case 'trous': {
+      const v = pickFrom(ME, u); if (!v) return null;
+      const pct = opt && opt.pct || 50;
+      const ts = toks(V(v.t, v.n)); const c = ts.map((x, j) => core(x) ? j : -1).filter(j => j >= 0);
+      const k = Math.max(1, Math.round(c.length * pct / 100));
+      return { kind, q: { t: v.t, n: v.n, pct, m: shuffle(c).slice(0, k).sort((a, b) => a - b) } }; }
+    case 'ordre': { const o = SELF.ordre(ME); return o.length ? { kind, q: o[0] } : null; }
+    case 'erreur': {
+      for (let i = 0; i < 30; i++) { const v = pickFrom(ME, u); if (!v) return null; const e = makeError(v.t, v.n); if (e) return { kind, q: e }; }
+      return null; }
+  }
+  return null;
+}
+let RUN = null;   // {ex, items, i, res:[], L:{}}
+function startRun(ex, opt) {
+  if (!poolMe().length) { view = 'prog'; render(); return; }
+  const u = []; const kinds = ex === 'defi' ? shuffle(DEFI) : Array(EX[ex].n).fill(ex);
+  const items = kinds.map(k => makeItem(k, u, opt)).filter(Boolean);
+  RUN = { ex, items, i: 0, res: [], L: { t0: Date.now() } };
+  view = 'run'; render(); scrollTo(0, 0);
+}
+const refOf = it => it.kind === 'ordre' ? it.q.seq.map(n => it.q.t + '|' + n) : it.kind === 'mots' ? it.q.ans : [it.q.t + '|' + it.q.n];
+function finishItem(score, extra) {
+  const it = RUN.items[RUN.i]; if (RUN.L.done) return;
+  Object.assign(RUN.L, { done: true, score }, extra || {});
+  RUN.res[RUN.i] = { score, refs: refOf(it), kind: it.kind };
+  render();
+}
+function nextItem() {
+  RUN.i++; RUN.L = { t0: Date.now() };
+  if (RUN.i >= RUN.items.length) endRun();
+  render(); scrollTo(0, 0);
+}
+function endRun() {
+  const pct = Math.round(100 * RUN.res.reduce((s, r) => s + r.score, 0) / Math.max(1, RUN.res.length));
+  RUN.pct = pct; const st = ST.stats[RUN.ex] || (ST.stats[RUN.ex] = { best: 0, n: 0 });
+  st.best = Math.max(st.best, pct); st.n++; st.last = today();
+  if (!ST.days.includes(today())) ST.days.push(today());
+  RUN.res.forEach(r => r.refs.forEach(k => { if (r.score < .999) ST.miss[k] = (ST.miss[k] || 0) + 1; else if (ST.miss[k]) { ST.miss[k]--; if (!ST.miss[k]) delete ST.miss[k]; } }));
+  saveST(); view = 'end';
+}
+
+// ───────────────────────── affichage ─────────────────────────
+let view = 'home', trousPct = 50;
+function grid(sel, act, marks, dis) {
+  const pl = poolMe(); const secs = [...new Set(pl.map(v => v.t))];
+  return secs.map(t => `${secs.length > 1 ? `<div class="hint">${esc(t)}</div>` : ''}<div class="grid">${pl.filter(v => v.t === t).map(v => { const k = vkey(v);
+    const cls = marks ? (marks.right.includes(k) ? 'right' : marks.wrong.includes(k) ? 'wrong' : '') : (sel.includes(k) ? 'sel' : '');
+    return `<button class="${cls}" data-act="${act}" data-k="${esc(k)}" ${marks || dis ? 'disabled' : ''}>${v.n}</button>`; }).join('')}</div>`).join('');
+}
+function cd(sec) { const end = RUN.L.t0 + sec * 1000; return `<div class="cd" data-end="${end}" data-total="${sec * 1000}"><div class="cdbar"><i></i></div><b class="cdt"></b></div>`; }
+const nextBtn = () => `<button class="primary" style="width:100%;margin-top:12px" data-act="next">${RUN.i + 1 < RUN.items.length ? 'Suivant ▶' : 'Voir mon bilan'}</button>`;
+const verdict = (ok, txt) => `<div class="verdict ${ok ? 'ok' : 'ko'}">${txt}</div>`;
+const fullVerse = (t, n) => `<div class="answer"><b>${esc(t)} v${n}</b><div class="verse" style="margin:4px 0 0">${esc(V(t, n))}</div></div>`;
+
+function itemHTML(it) {
+  const q = it.q, L = RUN.L;
+  switch (it.kind) {
+    case 'num2verse': return `<span class="chip">${esc(q.t)}</span><div class="huge">Verset ${q.n}</div><div class="instr">Récite-le (à voix haute ou dans ta tête), puis vérifie.</div>` + selfCheck(L, fullVerse(q.t, q.n));
+    case 'suivant': return `<span class="chip">${esc(q.t)}</span><div class="verse">${esc(V(q.t, q.n))}</div><div class="instr"><b>${q.d > 0 ? '⬇ Récite le verset SUIVANT' : '⬆ Récite le verset PRÉCÉDENT'}</b></div>` + selfCheck(L, fullVerse(q.t, q.n + q.d));
+    case 'initiales': {
+      const ans = q.t + '|' + q.n;
+      let h = `<span class="chip">${esc(q.t)}</span><div class="initials">${esc(initials(V(q.t, q.n)))}</div><div class="instr">Quel est ce verset ? Récite-le dans ta tête, puis touche son numéro.</div>`;
+      if (!L.done) return h + grid([], 'pickIni');
+      return h + grid([], 'noop', { right: [ans], wrong: L.pick && L.pick !== ans ? [L.pick] : [] }) + verdict(L.score > 0, L.score > 0 ? '✓ C’est bien le verset ' + q.n : '✗ C’était le verset ' + q.n) + fullVerse(q.t, q.n) + nextBtn(); }
+    case 'v2num': {
+      const ans = q.t + '|' + q.n;
+      let h = `<span class="chip">${esc(q.t)}</span><div class="verse">${esc(V(q.t, q.n))}</div><div class="instr">Quel est le numéro de ce verset ?</div>`;
+      if (!L.done) return h + cd(EX.v2num.sec) + grid([], 'pickNum');
+      return h + grid([], 'noop', { right: [ans], wrong: L.pick && L.pick !== ans ? [L.pick] : [] }) + timedVerdict(L, 'v' + q.n) + nextBtn(); }
+    case 'premdern': {
+      let h = `<span class="chip">${esc(q.t)}</span><div class="huge">Verset ${q.n}</div><div class="instr">Quel est le <b>${q.w.toUpperCase()}</b> mot ?</div>`;
+      if (!L.done) h += cd(EX.premdern.sec);
+      h += `<div class="opts">${q.opts.map(o => { let cls = ''; if (L.done) cls = norm(o) === norm(q.ans) ? 'right' : (L.pick != null && norm(o) === norm(L.pick) ? 'wrong' : '');
+        return `<button class="${cls}" data-act="pickOpt" data-o="${esc(o)}" ${L.done ? 'disabled' : ''}>${esc(o)}</button>`; }).join('')}</div>`;
+      return h + (L.done ? timedVerdict(L, '« ' + esc(q.ans) + ' »') + fullVerse(q.t, q.n) + nextBtn() : ''); }
+    case 'mots': {
+      let h = `<span class="chip">${esc(q.T)}</span><div class="huge words">« ${esc(q.ph)} »</div><div class="instr">Dans quel(s) verset(s) ? Sélectionne-les tous, puis valide.</div>`;
+      const sel = L.sel || [];
+      if (!L.done) return h + cd(EX.mots.sec) + grid(sel, 'toggleNum') + `<button class="primary" style="width:100%" data-act="sendMots" ${sel.length ? '' : 'disabled'}>Valider (${sel.length})</button>`;
+      return h + grid([], 'noop', { right: q.ans, wrong: sel.filter(x => !q.ans.includes(x)) }) + timedVerdict(L, refsHTML(q.ans)) + nextBtn(); }
+    case 'trous': {
+      const ts = toks(V(q.t, q.n));
+      const body = ts.map((x, j) => {
+        if (!q.m.includes(j)) return `<span class="w">${esc(x)}</span>`;
+        const { pre, core: c, post } = splitTok(x);
+        if (L.done) { const val = (L.vals || {})[j] || ''; const ok = norm(val) === norm(c);
+          return `<span class="w">${esc(pre)}<span class="${ok ? 'good' : 'bad'}">${ok ? esc(c) : `<s>${esc(val) || '…'}</s> ${esc(c)}`}</span>${esc(post)}</span>`; }
+        return `<span class="w">${esc(pre)}<input class="blank" data-j="${j}" style="width:${Math.max(2.4, c.length * 0.62 + 1)}em" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">${esc(post)}</span>`;
+      }).join(' ');
+      return `<span class="chip">${esc(q.t)} · v${q.n}</span> <span class="hint">${q.pct} % caché</span><div class="verse trous">${body}</div>` +
+        (L.done ? verdict(L.score >= .999, `${L.good}/${q.m.length} mots justes`) + nextBtn() : `<button class="primary" style="width:100%" data-act="trousCheck">Vérifier</button><p class="hint">Les accents et majuscules ne comptent pas. Espace ou Entrée = mot suivant.</p>`); }
+    case 'ordre': {
+      const order = L.order || [];
+      const cards = q.sh.map((n, k) => { const pos = order.indexOf(k); let cls = pos >= 0 ? 'sel' : ''; let extra = '';
+        if (L.done) { const good = q.seq[pos] === n; cls += good ? ' ok' : ' ko'; extra = `<div class="hint">${good ? '✓' : '✗'} C’est le v${n}</div>`; }
+        return `<div class="ocard ${cls}" data-act="${L.done ? 'noop' : 'ordTap'}" data-k="${k}"><span class="num">${pos >= 0 ? pos + 1 : ''}</span>${esc(V(q.t, n))}${extra}</div>`; }).join('');
+      return `<span class="chip">${esc(q.t)} · ${q.seq.length} versets qui se suivent</span><p class="hint">Touche les versets dans l’ordre (touche à nouveau pour annuler).</p>${cards}` +
+        (L.done ? verdict(L.score >= .999, `${L.good}/${q.seq.length} bien placés (v${q.seq[0]} à v${q.seq[q.seq.length - 1]})`) + nextBtn() : `<div class="row"><button data-act="ordReset">Recommencer</button><button class="primary grow" data-act="ordCheck" ${order.length === q.sh.length ? '' : 'disabled'}>Valider</button></div>`); }
+    case 'erreur': {
+      const ts = toks(V(q.t, q.n)); ts[q.j] = q.w;
+      const body = ts.map((x, j) => { let cls = '';
+        if (L.done) { if (j === q.j) cls = 'right'; else if (j === L.pick) cls = 'wrong'; } else if (j === L.pick) cls = 'picked';
+        return `<span class="tapw ${cls}" data-act="${L.done ? 'noop' : 'errTap'}" data-j="${j}">${esc(x)}</span>`; }).join(' ');
+      return `<span class="chip">${esc(q.t)} · v${q.n}</span><div class="verse">${body}</div>` +
+        (L.done ? verdict(L.score > 0, (L.score > 0 ? '✓ Trouvé !' : '✗ Raté') + ` — il fallait « ${esc(q.orig)} » au lieu de « ${esc(core(q.w))} »`) + nextBtn()
+          : `<p class="hint">Touche le mot qui a été changé, puis valide.</p><button class="primary" style="width:100%" data-act="errCheck" ${L.pick != null ? '' : 'disabled'}>Valider${L.pick != null ? ' « ' + esc(core(ts[L.pick])) + ' »' : ''}</button>`); }
+  }
+  return '';
+}
+function selfCheck(L, answer) {
+  if (!L.rev) return `<button class="primary" style="width:100%;margin-top:14px" data-act="reveal">Voir la réponse</button>`;
+  if (!L.done) return answer + `<p class="hint" style="margin-top:10px">Compare avec ce que tu as récité, mot pour mot (crochets compris).</p><div class="assess"><button class="good" data-act="assess" data-v="1">✓ Je l’avais</button><button class="bad" data-act="assess" data-v="0">✗ À revoir</button></div>`;
+  return answer + verdict(L.score > 0, L.score > 0 ? '✓ Bravo !' : '✗ On le revoit bientôt') + nextBtn();
+}
+function timedVerdict(L, ansHTML) {
+  if (L.score > 0) return verdict(true, `✓ Juste en ${fmtS(L.ms)}`);
+  return verdict(false, `✗ ${L.expired ? 'Temps écoulé' : 'Raté'} — réponse : ${ansHTML}`);
+}
+
+function homeHTML() {
+  const sk = streak(); const st = ST.stats;
+  const miss = Object.entries(ST.miss).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const exBtn = (k, e) => `<button class="ex" data-act="${k === 'trous' ? 'trousMenu' : 'start'}" data-ex="${k}"><span class="ico">${e.ico}</span><span class="txt"><b>${esc(e.titre)}</b><span>${esc(e.desc)}</span></span><span class="best">${st[k] ? st[k].best + ' %' : ''}</span></button>`;
+  return `<div class="home-hero"><h1>Salut ${esc(ME)} 👋</h1>
+    <div class="row"><span class="streak">🔥 ${sk} jour${sk > 1 ? 's' : ''} d’affilée</span><span class="hint">${esc(learnedTxt())}</span></div></div>
+    <div class="exlist" style="margin-top:12px">
+      <button class="ex defi" data-act="start" data-ex="defi"><span class="ico">⭐</span><span class="txt"><b>Défi du jour</b><span>12 questions mélangées, tous les exercices</span></span><span class="best">${st.defi ? st.defi.best + ' %' : ''}</span></button>
+    </div>
+    <div class="sec-title">Par cœur</div><div class="exlist">${['num2verse', 'initiales', 'suivant', 'trous'].map(k => exBtn(k, EX[k])).join('')}</div>
+    <div class="sec-title">Repérage</div><div class="exlist">${['ordre', 'erreur'].map(k => exBtn(k, EX[k])).join('')}</div>
+    <div class="sec-title">Rapidité</div><div class="exlist">${['v2num', 'premdern', 'mots'].map(k => exBtn(k, EX[k])).join('')}</div>
+    ${miss.length ? `<div class="sec-title">Versets à revoir</div><div class="card"><div class="revoir">${miss.map(([k]) => { const x = unkey(k); return `<span class="mini" data-act="showV" data-k="${esc(k)}">${esc(x.t.replace('Romains', 'Rm').replace('Colossiens', 'Col'))} v${x.n}</span>`; }).join('')}</div><div id="vshow"></div></div>` : ''}
+    <div class="row" style="margin:18px 0"><button class="small" data-act="prog">📖 Changer ma progression</button></div>`;
+}
+function progHTML() {
+  return `<div class="home-hero"><h1>${ST.setup ? 'Ma progression' : 'Bienvenue ' + esc(ME) + ' 👋'}</h1><p class="muted">Jusqu’à quel verset connais-tu ton texte par cœur ? Les exercices ne te demanderont que ces versets.</p></div>
+  <div class="card">${TEXTE_DE[ME].map(t => `<label style="display:block;margin:8px 0"><b>${esc(t)}</b><br>Je connais les versets 1 à <input id="pg_${esc(t.replace(/\s/g, '_'))}" data-t="${esc(t)}" class="pgin" type="number" inputmode="numeric" min="0" max="${TEXTES[t].length}" value="${ST.prog[t] || 0}" style="width:80px;font-size:20px"> <span class="muted">sur ${TEXTES[t].length}</span></label>`).join('')}
+  <button class="primary" style="width:100%;margin-top:10px" data-act="saveProg">Enregistrer</button></div>`;
+}
+function trousMenuHTML() {
+  return `<div class="topbar"><button class="small" data-act="home">✕</button><span class="grow">Texte à trous</span></div>
+  <div class="card"><h2>Choisis ton niveau</h2><p class="muted">Part des mots cachés dans chaque verset (5 versets au hasard).</p>
+  <div class="lvl">${[30, 50, 80, 100].map(p => `<button class="${trousPct === p ? 'sel' : ''}" data-act="pct" data-v="${p}">${p} %</button>`).join('')}</div>
+  <button class="primary" style="width:100%;margin-top:12px" data-act="startTrous">Commencer</button></div>`;
+}
+function runHTML() {
+  const it = RUN.items[RUN.i]; if (!it) return '';
+  const titre = RUN.ex === 'defi' ? 'Défi du jour · ' + EX[it.kind].titre : EX[RUN.ex].titre;
+  return `<div class="topbar"><button class="small" data-act="quit">✕</button><span class="grow">${esc(titre)}</span><span class="hint">${RUN.i + 1}/${RUN.items.length}</span></div>
+  <div class="progress"><i style="width:${100 * RUN.i / RUN.items.length}%"></i></div><div class="card">${itemHTML(it)}</div>`;
+}
+function endHTML() {
+  const bad = RUN.res.map((r, i) => ({ r, it: RUN.items[i] })).filter(x => x.r.score < .999);
+  const keys = [...new Set(bad.flatMap(x => x.r.refs))];
+  return `<div class="topbar"><button class="small" data-act="home">✕</button><span class="grow">Bilan</span></div>
+  <div class="card" style="text-align:center"><div class="bigscore">${RUN.pct} %</div><p class="muted">${RUN.res.filter(r => r.score >= .999).length}/${RUN.res.length} réussies · 🔥 ${streak()} jour(s) d’affilée</p>
+  <div class="row" style="justify-content:center"><button class="primary" data-act="again">Recommencer</button><button data-act="home">Menu</button></div></div>
+  ${keys.length ? `<div class="card"><h3 style="margin-top:0">À revoir</h3>${keys.map(k => { const x = unkey(k); return `<div class="miss"><b>${esc(x.t)} v${x.n}</b><div class="verse" style="margin:4px 0 0;font-size:17px">${esc(V(x.t, x.n))}</div></div>`; }).join('')}</div>` : `<div class="card"><p>Tout juste, bravo ! 🎉</p></div>`}`;
+}
+function chooserHTML() {
+  return `<div class="home-hero"><h1>📖 Mon entraînement</h1><p class="muted">Choisis ton prénom (puis garde ce lien dans tes favoris) :</p></div>
+  <div class="login">${JOUEURS.map(p => `<a href="?moi=${p}" style="text-decoration:none"><button style="width:100%;text-align:left">${esc(p)} <span class="muted" style="font-size:15px">· ${esc(TEXTE_DE[p].join(' + '))}</span></button></a>`).join('')}</div>`;
+}
+function render() {
+  const app = $('#app');
+  if (!ME) { app.innerHTML = chooserHTML(); return; }
+  if (!ST.setup) view = 'prog';
+  app.innerHTML = view === 'prog' ? progHTML() : view === 'trous' ? trousMenuHTML() : view === 'run' ? runHTML() : view === 'end' ? endHTML() : homeHTML();
+  tick();
+  const f = app.querySelector('input.blank'); if (f && !('ontouchstart' in window)) f.focus();
+}
+function tick() {
+  const now = Date.now();
+  document.querySelectorAll('.cd[data-end]').forEach(el => {
+    const left = Math.max(0, +el.dataset.end - now), tot = +el.dataset.total;
+    el.querySelector('.cdbar i').style.width = (100 * left / tot) + '%';
+    el.querySelector('.cdt').textContent = left > 0 ? (left / 1000).toFixed(1) + ' s' : 'Temps écoulé';
+    el.classList.toggle('late', left < 3000);
+  });
+  if (view === 'run' && RUN && !RUN.L.done) {
+    const it = RUN.items[RUN.i]; const sec = it && EX[it.kind].sec;
+    if (sec && now > RUN.L.t0 + sec * 1000) {
+      if (it.kind === 'mots' && (RUN.L.sel || []).length) timedAnswer(RUN.L.sel.slice());
+      else finishItem(0, { expired: true });
+    }
+  }
+}
+setInterval(tick, 100);
+function timedAnswer(v) {
+  const it = RUN.items[RUN.i], q = it.q, L = RUN.L; if (L.done) return;
+  const ms = Math.min(EX[it.kind].sec * 1000, Date.now() - L.t0);
+  let ok = false;
+  if (it.kind === 'v2num') ok = v === q.t + '|' + q.n;
+  else if (it.kind === 'premdern') ok = norm(v) === norm(q.ans);
+  else if (it.kind === 'mots') ok = [...v].sort().join(',') === [...q.ans].sort().join(',');
+  finishItem(ok ? 1 : 0, { pick: v, sel: Array.isArray(v) ? v : L.sel, ms });
+}
+
+const ACT = {
+  noop() {},
+  home() { view = 'home'; RUN = null; render(); scrollTo(0, 0); },
+  quit() { view = 'home'; RUN = null; render(); },
+  prog() { view = 'prog'; render(); },
+  saveProg() {
+    document.querySelectorAll('.pgin').forEach(i => { ST.prog[i.dataset.t] = Math.max(0, Math.min(TEXTES[i.dataset.t].length, parseInt(i.value, 10) || 0)); });
+    if (!TEXTE_DE[ME].some(t => ST.prog[t] > 0)) { alert('Indique au moins 1 verset.'); return; }
+    ST.setup = true; saveST(); view = 'home'; render();
+  },
+  start(ds) { startRun(ds.ex); },
+  trousMenu() { view = 'trous'; render(); },
+  pct(ds) { trousPct = +ds.v; render(); },
+  startTrous() { startRun('trous', { pct: trousPct }); },
+  again() { if (RUN.ex === 'trous') startRun('trous', { pct: trousPct }); else startRun(RUN.ex); },
+  next() { nextItem(); },
+  reveal() { RUN.L.rev = true; render(); },
+  assess(ds) { finishItem(ds.v === '1' ? 1 : 0); },
+  pickIni(ds) { const q = RUN.items[RUN.i].q; finishItem(ds.k === q.t + '|' + q.n ? 1 : 0, { pick: ds.k }); },
+  pickNum(ds) { timedAnswer(ds.k); },
+  pickOpt(ds) { timedAnswer(ds.o); },
+  toggleNum(ds) { const s = RUN.L.sel || (RUN.L.sel = []); const i = s.indexOf(ds.k); if (i >= 0) s.splice(i, 1); else s.push(ds.k); render(); },
+  sendMots() { if ((RUN.L.sel || []).length) timedAnswer(RUN.L.sel.slice()); },
+  trousCheck() {
+    const q = RUN.items[RUN.i].q; const ts = toks(V(q.t, q.n)); const vals = {};
+    document.querySelectorAll('input.blank').forEach(i => vals[i.dataset.j] = i.value);
+    const good = q.m.filter(j => norm(vals[j] || '') === norm(core(ts[j]))).length;
+    finishItem(good / q.m.length, { vals, good });
+  },
+  ordTap(ds) { const o = RUN.L.order || (RUN.L.order = []); const k = +ds.k; const i = o.indexOf(k); if (i >= 0) o.splice(i); else o.push(k); render(); },
+  ordReset() { RUN.L.order = []; render(); },
+  ordCheck() { const q = RUN.items[RUN.i].q; const ch = RUN.L.order.map(k => q.sh[k]); const good = ch.filter((n, i) => n === q.seq[i]).length; finishItem(good / q.seq.length, { good }); },
+  errTap(ds) { RUN.L.pick = +ds.j; render(); },
+  errCheck() { const q = RUN.items[RUN.i].q; if (RUN.L.pick == null) return; finishItem(RUN.L.pick === q.j ? 1 : 0); },
+  showV(ds) { const x = unkey(ds.k); $('#vshow').innerHTML = `<div class="miss"><b>${esc(x.t)} v${x.n}</b><div class="verse" style="margin:4px 0 0;font-size:17px">${esc(V(x.t, x.n))}</div></div>`; },
+};
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
+  const f = ACT[b.dataset.act]; if (f) { e.preventDefault(); f(b.dataset, b); }
+});
+document.addEventListener('keydown', e => {
+  if (e.target.classList && e.target.classList.contains('blank') && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); nextBlank(e.target, e.key === 'Enter'); }
+});
+document.addEventListener('input', e => {
+  if (e.target.classList && e.target.classList.contains('blank') && /\s/.test(e.target.value)) { e.target.value = e.target.value.replace(/\s+/g, ''); nextBlank(e.target, false); }
+});
+function nextBlank(el, enter) { const all = [...document.querySelectorAll('input.blank')]; const i = all.indexOf(el); if (i < all.length - 1) all[i + 1].focus(); else if (enter) ACT.trousCheck(); }
+
+if (ME) { loadST(); document.title = 'Entraînement de ' + ME; }
+render();
+</script>
+</body>
+</html>
