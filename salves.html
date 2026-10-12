@@ -74,6 +74,15 @@ h2{font-size:20px;margin:0 0 8px;text-wrap:balance} h3{font-size:15px;margin:14p
 .switch{display:flex;gap:10px;align-items:center;font-weight:600}
 .switch input{width:22px;height:22px}
 .seg{display:flex;gap:6px;flex-wrap:wrap}.seg button.sel{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.tabs button.sel{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.vline{display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:16px;line-height:1.5}
+.vline .vn{flex:none;width:28px;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums}
+.vline.todo{opacity:.55}
+mark{background:var(--warn-soft);color:inherit;border-radius:3px;padding:0 1px}
+.qline{border-top:1px solid var(--line);padding:8px 0}
+.qline .qa{color:var(--good);font-weight:600;font-size:14px}
+.qline .qo{font-size:13px;color:var(--muted)}
+.sech{margin:16px 0 4px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);font-weight:800}
 .rot{width:100%;border-collapse:collapse;font-size:14px}.rot td{padding:5px 4px;border-top:1px solid var(--line)}
 .rot tr.me td{font-weight:700;color:var(--accent)}
 details summary{cursor:pointer;font-weight:650;padding:4px 0}
@@ -109,6 +118,7 @@ safe-buffer/index.js:
 // ║   (progression et affichage aussi modifiables dans l'app)    ║
 // ╚══════════════════════════════════════════════════════════════╝
 const SALLE = 'salves-romains-2026';
+const ADMIN = 'Edmond';            // compte qui voit l’espace admin
 const COACHS = ['Edmond', 'Jeany', 'Timothé', 'Naomie', 'Benoit'];
 const JEUNES = ['Joyce', 'Ruth', 'Romane', 'Terence', 'Louise'];
 const TEXTE_DE = { Joyce: ['Romains 2'], Ruth: ['Romains 12'], Romane: ['Romains 13', 'Colossiens 3'], Terence: ['Romains 14'], Louise: ['Romains 15'] };
@@ -715,7 +725,7 @@ class LocalNet {
   publish(sub, msg, retain) { if (retain) localStorage.setItem('ret:' + BASE + '/' + sub, JSON.stringify(msg)); this.ch.postMessage({ sub, msg }); }
 }
 function onMsg(sub, msg) {
-  if (sub === 'cfg') { if (msg && msg.ts > CFG.ts) { const old = CFG.salve; CFG = msg; if (ROLE === 'coach' && VIEW.y && msg.salve !== old) { VIEW.y = jeuneDe(ME, msg.salve); VIEW.confirmNew = false; scrollTo(0, 0); } render(); } }
+  if (sub === 'cfg') { if (msg && msg.ts > CFG.ts) { const old = CFG.salve; CFG = msg; if (ROLE === 'coach' && VIEW.y && !VIEW.admin && msg.salve !== old) { VIEW.y = jeuneDe(ME, msg.salve); VIEW.confirmNew = false; scrollTo(0, 0); } render(); } }
   else if (sub.startsWith('eleve/')) {
     const J = sub.slice(6); const cur = ST[J];
     if (!msg || !msg.list) return;
@@ -773,10 +783,44 @@ function loginHTML() {
 }
 
 // ───── Coach ─────
+function adminHTML() {
+  const tab = VIEW.tab || 'textes';
+  let h = header('Espace admin', 'Coach ' + ME) + `<div class="row" style="margin-bottom:10px"><button class="small" data-act="home">◀ Retour</button></div>
+  <div class="tabs"><button class="small ${tab === 'textes' ? 'sel' : ''}" data-act="tab" data-v="textes">📖 Les textes</button><button class="small ${tab === 'questions' ? 'sel' : ''}" data-act="tab" data-v="questions">📋 Questions par jeune</button></div>`;
+  if (tab === 'textes') {
+    const all = Object.keys(TEXTES); const t = VIEW.texte || all[0];
+    const who = JEUNES.find(j => TEXTE_DE[j].includes(t)); const k = (progOf(who).find(x => x.t === t) || {}).k || 0;
+    const qv = (VIEW.cherche || '').trim();
+    let re = null; if (qv) { try { re = new RegExp(`(?<![\\p{L}])(${escRe(qv)})(?![\\p{L}])`, 'giu'); } catch (e) {} }
+    let nOcc = 0; const hits = [];
+    const lines = TEXTES[t].map((v, i) => { let txt = esc(v); if (re) { const m = v.match(re); if (m) { nOcc += m.length; hits.push(i + 1); txt = esc(v).replace(new RegExp(`(?<![\\p{L}])(${escRe(esc(qv))})(?![\\p{L}])`, 'giu'), '<mark>$1</mark>'); } }
+      return `<div class="vline ${i + 1 > k ? 'todo' : ''}"><span class="vn">${i + 1}</span><span>${txt}</span></div>`; }).join('');
+    h += `<div class="tabs">${all.map(x => `<button class="small ${x === t ? 'sel' : ''}" data-act="texte" data-v="${esc(x)}">${esc(SHORT[x])} · ${esc(JEUNES.find(j => TEXTE_DE[j].includes(x)))}</button>`).join('')}</div>
+    <div class="card"><h2 style="margin-bottom:2px">${esc(t)}</h2><p class="hint" style="margin:0 0 10px">${esc(who)} · ${TEXTES[t].length} versets · appris : 1 à ${k} (les versets pas encore appris sont en gris)</p>
+    <div class="row" style="margin-bottom:8px"><input id="cherche" class="grow" placeholder="Chercher un mot (ex. loi)" value="${esc(qv)}" autocomplete="off"></div>
+    ${qv ? `<p class="hint" style="margin:0 0 8px"><b>${nOcc}</b> fois · ${hits.length ? 'versets ' + hits.join(', ') : 'aucun verset'}</p>` : ''}${lines}</div>`;
+  } else {
+    const J = VIEW.qj || JEUNES[0]; const s = ST[J];
+    h += `<div class="tabs">${JEUNES.map(j => `<button class="small ${j === J ? 'sel' : ''}" data-act="qj" data-v="${j}">${esc(j)}</button>`).join('')}</div>`;
+    if (!s) return h + `<div class="card"><p>${esc(J)} n’a pas encore de série.</p><button class="primary" data-act="adminSerie" data-v="${J}">Créer sa série maintenant</button></div>`;
+    const sc = scoreOf(s); const groups = [];
+    s.list.forEach((q, i) => { let g = groups.find(x => x.sec === q.sec); if (!g) groups.push(g = { sec: q.sec, items: [] }); g.items.push({ q, i }); });
+    h += `<div class="card"><h2 style="margin-bottom:2px">${esc(J)} · ${esc(TEXTE_DE[J].join(' + '))}</h2><p class="hint" style="margin:0">${s.list.length} questions · en cours : n°${Math.min(s.i + 1, s.list.length)} · ✓ ${sc.ok} ✗ ${sc.ko} · ${progOf(J).map(x => SHORT[x.t] + ' 1–' + x.k).join(', ')}</p>
+    <p class="hint">Catégories : ${groups.map(g => `${esc(g.sec.replace('…', ''))} (${g.items.length})`).join(' · ')}</p>`;
+    for (const g of groups) h += `<div class="sech">${esc(g.sec)} · ${g.items.length}</div>` + g.items.map(({ q, i }) => {
+      const r = s.res[i]; const st = r ? (r.ok ? '<span class="okc">✓</span>' : r.skip ? '<span class="skc">–</span>' : '<span class="koc">✗</span>') : (i === s.i ? '<span class="hint">◀ en cours</span>' : '');
+      const a = q.ans || (q.opts ? `${L[q.r]}) ${q.opts[q.r]}` : '');
+      const vv = q.verses && !q.opts && !q.ans ? q.verses.map(([t, n]) => `${SHORT[t]} v${n}`).join(', ') : '';
+      return `<div class="qline"><div class="row" style="align-items:baseline"><b class="grow" style="font-weight:600">${i + 1}. ${esc(q.q)}</b>${st}</div>${q.opts ? `<div class="qo">${q.opts.map((o, j) => `${L[j]}) ${esc(o)}`).join(' · ')}</div>` : ''}${a ? `<div class="qa">→ ${esc(a)}</div>` : ''}${vv ? `<div class="qa">→ ${esc(vv)}</div>` : ''}${q.note ? `<div class="qo">${esc(q.note)}</div>` : ''}</div>`;
+    }).join('');
+    h += '</div>';
+  }
+  return h;
+}
 function coachHome() {
   const s = CFG.salve || 1; const mine = jeuneDe(ME, s);
   return header('Coach ' + ME, 'Salves · Quiz biblique') + (ready ? '' : '<div class="banner warn">Synchronisation…</div>') +
-  finBanner() + salveBar() + `<div class="card"><button class="primary" style="width:100%" data-act="open" data-y="${mine}">Aller avec ${esc(mine)} ▶</button>
+  finBanner() + salveBar() + (ME === ADMIN ? `<button style="width:100%;margin-bottom:12px" data-act="admin">🛠 Espace admin : textes et questions</button>` : '') + `<div class="card"><button class="primary" style="width:100%" data-act="open" data-y="${mine}">Aller avec ${esc(mine)} ▶</button>
    <details style="margin-top:10px"><summary>Rotation</summary><table class="rot">${[0, 1, 2, 3, 4].map(d => s + d).map(k => `<tr class="${k === s ? 'me' : ''}"><td>Salve ${k}</td><td>${esc(ME)} ↔ ${esc(jeuneDe(ME, k))}</td></tr>`).join('')}</table><p class="hint">Puis ça recommence dans le même ordre.</p></details></div>
   <h3>Tous les jeunes</h3><div class="grid5">${JEUNES.map(j => { const st = ST[j]; const sc = st ? scoreOf(st) : null;
     return `<button class="ycard ${j === mine ? 'mine' : ''}" data-act="open" data-y="${j}"><span class="nm">${esc(j)}</span><span class="info">${esc(TEXTE_DE[j].join(' + '))} · ${progOf(j).map(x => x.k + ' v.').join(' + ')}<br>${st ? `Question ${Math.min(st.i + 1, st.list.length)}/${st.list.length} · ✓ ${sc.ok} ✗ ${sc.ko} · dernier coach : ${esc(st.coach || '—')}` : 'Pas encore commencé'}</span>▶</button>`; }).join('')}</div>
@@ -844,7 +888,7 @@ function render() {
   const app = $('#app');
   if (!ROLE) { app.innerHTML = loginHTML(); return; }
   const y = scrollY; const focusId = document.activeElement && document.activeElement.id;
-  app.innerHTML = ROLE === 'coach' ? (VIEW.y ? coachSession(VIEW.y) : coachHome()) : jeuneHTML();
+  app.innerHTML = ROLE === 'coach' ? (VIEW.admin ? adminHTML() : VIEW.y ? coachSession(VIEW.y) : coachHome()) : jeuneHTML();
   if (focusId === 'visible' || focusId === 'duree') { const f = document.getElementById(focusId); f && f.focus(); }
   scrollTo(0, y);
 }
@@ -854,8 +898,13 @@ setInterval(() => { document.querySelectorAll('.timer[data-fin]').forEach(el => 
 const ACT = {
   login(d) { store.setItem('qs_role', d.r); store.setItem('qs_me', d.n); boot(); },
   logout() { store.removeItem('qs_role'); store.removeItem('qs_me'); location.href = location.pathname + (LOCAL ? '?local=1' : ''); },
-  home() { VIEW.y = null; VIEW.confirmNew = false; render(); scrollTo(0, 0); },
-  open(d) { VIEW.y = d.y; render(); scrollTo(0, 0); },
+  home() { VIEW.y = null; VIEW.admin = false; VIEW.confirmNew = false; render(); scrollTo(0, 0); },
+  admin() { VIEW.admin = true; VIEW.y = null; render(); scrollTo(0, 0); },
+  tab(d) { VIEW.tab = d.v; render(); },
+  texte(d) { VIEW.texte = d.v; VIEW.cherche = ''; render(); },
+  qj(d) { VIEW.qj = d.v; render(); },
+  adminSerie(d) { const J = d.v; ST[J] = { J, serie: Date.now(), rev: 0, list: buildSerie(J, CFG), i: 0, phase: 'ask', res: {} }; pubEleve(J); },
+  open(d) { VIEW.y = d.y; VIEW.admin = false; render(); scrollTo(0, 0); },
   ack() { VIEW.ack = VIEW.y + ST[VIEW.y].serie; render(); },
   salveNext() { CFG.salve = (CFG.salve || 1) + 1; CFG.salveFin = Date.now() + CFG.duree * 60000; VIEW.y = jeuneDe(ME, CFG.salve); pubCfg(); scrollTo(0, 0); },
   newSerie() {
@@ -883,6 +932,7 @@ document.addEventListener('change', e => {
   else if (t.id === 'duree') { CFG.duree = Math.max(1, Math.min(30, +t.value || 5)); VIEW.set = true; pubCfg(); }
   else if (t.classList.contains('pg')) { (CFG.prog[t.dataset.p] = CFG.prog[t.dataset.p] || {})[t.dataset.t] = Math.max(0, Math.min(TEXTES[t.dataset.t].length, parseInt(t.value, 10) || 0)); VIEW.set = true; pubCfg(); }
 });
+document.addEventListener('input', e => { if (e.target.id === 'cherche') { VIEW.cherche = e.target.value; const pos = e.target.selectionStart; render(); const f = document.getElementById('cherche'); if (f) { f.focus(); f.setSelectionRange(pos, pos); } } });
 document.addEventListener('toggle', e => { if (e.target.id === 'setd') VIEW.set = e.target.open; if (e.target.id === 'hist') VIEW.hist = e.target.open; }, true);
 
 function boot() {
