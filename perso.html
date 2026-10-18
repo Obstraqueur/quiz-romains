@@ -344,7 +344,7 @@ const SELF = {
     for (let f = 0; f < (+P().ordre_fois || 1); f++) {
       const t = rnd(secs.flatMap(s => bySec[s].map(() => s))); const ns = bySec[t];
       const L = Math.max(2, Math.min(+P().ordre_nb || 5, ns.length));
-      const s = Math.floor(Math.random() * (ns.length - L + 1)); const seq = ns.slice(s, s + L);
+      const seq = shuffle(ns).slice(0, L).sort((a, b) => a - b);   // versets pris au hasard, pas forcément à la suite
       let sh = shuffle(seq); for (let g = 0; g < 50 && sh.join() === seq.join(); g++) sh = shuffle(seq);
       if (sh.join() === seq.join()) sh = seq.slice().reverse();
       out.push({ t, seq, sh });
@@ -390,7 +390,7 @@ const EX = {
   initiales: { ico: '🔤', titre: 'Premières lettres', desc: 'Seulement les initiales : trouve quel verset c’est, puis récite-le.', n: 6 },
   suivant: { ico: '⏭️', titre: 'Le verset suivant', desc: 'Un verset s’affiche : récite le suivant ou le précédent.', n: 8 },
   trous: { ico: '✍️', titre: 'Texte à trous', desc: 'Complète les mots cachés. Choisis ton niveau.', n: 5 },
-  ordre: { ico: '🔀', titre: 'Remets dans l’ordre', desc: 'Des versets qui se suivent sont mélangés.', n: 3 },
+  ordre: { ico: '🔀', titre: 'Remets dans l’ordre', desc: 'Des versets pris çà et là : remets-les dans l’ordre.', n: 3 },
   erreur: { ico: '🔎', titre: 'Trouve l’erreur', desc: 'Un détail a été changé (synonyme, ordre…) : repère-le.', n: 5 },
   v2num: { ico: '⏱️', titre: 'Verset → numéro', desc: 'Chrono 10 s : donne le numéro du verset.', n: 10, sec: 10 },
   premdern: { ico: '⏱️', titre: 'Premier ou dernier mot', desc: 'Chrono 10 s : quel est le premier / dernier mot du verset N ?', n: 10, sec: 10 },
@@ -499,8 +499,8 @@ function itemHTML(it) {
       const cards = q.sh.map((n, k) => { const pos = order.indexOf(k); let cls = pos >= 0 ? 'sel' : ''; let extra = '';
         if (L.done) { const good = q.seq[pos] === n; cls += good ? ' ok' : ' ko'; extra = `<div class="hint">${good ? '✓' : '✗'} C’est le v${n}</div>`; }
         return `<div class="ocard ${cls}" data-act="${L.done ? 'noop' : 'ordTap'}" data-k="${k}"><span class="num">${pos >= 0 ? pos + 1 : ''}</span>${esc(V(q.t, n))}${extra}</div>`; }).join('');
-      return `<span class="chip">${esc(q.t)} · ${q.seq.length} versets qui se suivent</span><p class="hint">Touche les versets dans l’ordre (touche à nouveau pour annuler).</p>${cards}` +
-        (L.done ? verdict(L.score >= .999, `${L.good}/${q.seq.length} bien placés (v${q.seq[0]} à v${q.seq[q.seq.length - 1]})`) + nextBtn() : `<div class="row"><button data-act="ordReset">Recommencer</button><button class="primary grow" data-act="ordCheck" ${order.length === q.sh.length ? '' : 'disabled'}>Valider</button></div>`); }
+      return `<span class="chip">${esc(q.t)} · ${q.seq.length} versets</span><p class="hint">Touche les versets du plus petit numéro au plus grand (touche à nouveau pour annuler).</p>${cards}` +
+        (L.done ? verdict(L.score >= .999, `${L.good}/${q.seq.length} bien placés (ordre : v${q.seq.join(', v')})`) + nextBtn() : `<div class="row"><button data-act="ordReset">Recommencer</button><button class="primary grow" data-act="ordCheck" ${order.length === q.sh.length ? '' : 'disabled'}>Valider</button></div>`); }
     case 'erreur': {
       const ts = toks(q.txt); const inR = j => j >= q.a && j <= q.b;
       const body = ts.map((x, j) => { let cls = '';
