@@ -126,6 +126,17 @@ body.table .wrap{max-width:1200px}
 body.table .bigcard{width:220px;height:300px;font-size:110px}
 .fav{border-left:4px solid var(--accent);padding-left:10px}
 .qcard{font-size:22px;font-weight:600}
+.cgrid{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start;margin-top:8px}
+.ccol{display:grid;gap:6px;min-width:0}
+.cnums{position:sticky;top:70px;grid-template-columns:52px}.cnums.two{grid-template-columns:48px 48px}
+.cv{text-align:left;font-size:14px;line-height:1.35;padding:8px 10px;min-height:0;border-radius:10px}
+.cn{font-size:19px;font-weight:800;min-height:44px;padding:4px;border-radius:10px}
+.cv.sel,.cn.sel{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.cv.ok,.cn.ok{background:var(--soft);color:var(--good);border-color:var(--good);opacity:.7}
+.cv.flok,.cn.flok{background:var(--good);color:#fff;border-color:var(--good);opacity:1}
+.cv.flko,.cn.flko{background:var(--bad);color:#fff;border-color:var(--bad);animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@media (prefers-reduced-motion:reduce){.flko{animation:none}}
 </style>
 </head>
 <body>
@@ -396,6 +407,8 @@ const PROGRAMME = [
     consigne: 'Sur ton téléphone. Des versets pris çà et là dans ton texte : remets-les dans l’ordre.' },
   { id: 'erreur', titre: 'Trouve l’erreur', parts: [{ mode: 'self', gen: 'erreur' }],
     consigne: 'Sur ton téléphone. Un mot ou un petit groupe de mots a été changé (synonyme, ordre, détail…) : touche-le.' },
+  { id: 'connect', titre: 'Connecter verset ↔ numéro', parts: [{ mode: 'self', gen: 'connect' }],
+    consigne: 'Sur ton téléphone. Relie chaque verset à son numéro : ting si c’est juste, brr si c’est faux.' },
   { id: 'v2num', titre: 'Verset → numéro', parts: [
       { mode: 'oral', gen: 'v2num', tours: 'v2num_oral', sec: 'v2num_sec' },
       { mode: 'timed', gen: 'v2num', tours: 'v2num_tel', sec: 'v2num_sec' }],
@@ -593,6 +606,7 @@ const SELF = {
     }
     return out;
   },
+  connect(p) { return connectItems(p); },
   erreur(p) {
     const out = []; const u = [];
     for (let f = 0; f < (+P().erreur_fois || 5); f++) {
@@ -601,6 +615,46 @@ const SELF = {
     return out;
   },
 };
+
+
+// ───────── Connecter verset ↔ numéro (partagé par les deux apps) ─────────
+let AC = null;
+function sfx(ok) {
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();
+    const t = AC.currentTime;
+    const note = (f, st, d, type, vol) => { const o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.setValueAtTime(f, t + st);
+      g.gain.setValueAtTime(0.0001, t + st); g.gain.exponentialRampToValueAtTime(vol, t + st + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + st + d);
+      o.connect(g); g.connect(AC.destination); o.start(t + st); o.stop(t + st + d + 0.03); };
+    if (ok) { note(1318.5, 0, 0.2, 'sine', 0.25); note(1975.5, 0.09, 0.4, 'sine', 0.2); }          // ting !
+    else { note(92, 0, 0.32, 'sawtooth', 0.22); note(97, 0, 0.32, 'square', 0.08); if (navigator.vibrate) navigator.vibrate(120); }  // brr
+  } catch (e) {}
+}
+function connectItems(p) {
+  const by = {}; poolOf(p).forEach(v => (by[v.t] = by[v.t] || []).push(v.n));
+  return Object.keys(by).filter(t => by[t].length >= 2).map(t => ({ t, vs: shuffle(by[t]), ns: shuffle(by[t]) }));
+}
+function connectHTML(it, L) {
+  const m = L.m || []; const fl = L.fl || {};
+  const left = it.vs.map(n => { const done = m.includes(n);
+    const cls = 'cv' + (done ? ' ok' : '') + (L.sv === n ? ' sel' : '') + (fl.v === n ? (fl.ok ? ' flok' : ' flko') : '');
+    return `<button class="${cls}" data-act="cnV" data-v="${n}" ${done ? 'disabled' : ''}>${done ? `<b>v${n}</b> · ` : ''}${esc(V(it.t, n))}</button>`; }).join('');
+  const right = it.ns.map(n => { const done = m.includes(n);
+    const cls = 'cn' + (done ? ' ok' : '') + (L.sn === n ? ' sel' : '') + (fl.n === n ? (fl.ok ? ' flok' : ' flko') : '');
+    return `<button class="${cls}" data-act="cnN" data-v="${n}" ${done ? 'disabled' : ''}>${n}</button>`; }).join('');
+  return `<span class="chip">${esc(it.t)} · ${it.vs.length} versets</span> <span class="hint">${m.length}/${it.vs.length} reliés · ${L.err || 0} erreur(s)</span>
+    <p class="hint">Touche un verset puis son numéro (ou l’inverse). Ting = juste, brr = faux.</p>
+    <div class="cgrid"><div class="ccol">${left}</div><div class="ccol cnums ${it.ns.length > 8 ? 'two' : ''}">${right}</div></div>`;
+}
+function connectPick(it, L, side, val) {   // → 'sel' | 'ok' | 'ko' | 'done'
+  val = +val; if ((L.m || []).includes(val)) return 'sel';
+  if (side === 'v') L.sv = L.sv === val ? null : val; else L.sn = L.sn === val ? null : val;
+  if (L.sv == null || L.sn == null) return 'sel';
+  const ok = L.sv === L.sn; L.fl = { v: L.sv, n: L.sn, ok };
+  if (ok) (L.m = L.m || []).push(L.sv); else L.err = (L.err || 0) + 1;
+  L.sv = null; L.sn = null; sfx(ok);
+  return (L.m || []).length === it.vs.length ? 'done' : ok ? 'ok' : 'ko';
+}
 
 // ───────────────────────── animateur : logique ─────────────────────────
 function newState() {
@@ -911,13 +965,14 @@ function promptMini(q) {
   return '';
 }
 function selfShared(d) {
-  const label = { trous: 'versets', ordre: 'série(s)', erreur: 'versets' }[d.gen] || '';
+  const label = { trous: 'versets', ordre: 'série(s)', erreur: 'versets', connect: 'tableau(x)' }[d.gen] || '';
   return `<div class="card"><h3 style="margin-top:0">Progression</h3><table class="board">${JOUEURS.filter(p => d.items[p]).map(p => {
     const n = (d.items[p] || []).length; const pr = d.prog[p] || {}; const done = Object.keys(pr).length;
     const pts = Object.values(pr).reduce((s, r) => s + (+r.pts || 0), 0);
     let extra = '';
     if (d.gen === 'trous') { const ok = Object.values(pr).reduce((s, r) => s + (r.good || 0), 0), tot = Object.values(pr).reduce((s, r) => s + (r.total || 0), 0); extra = tot ? `${Math.round(100 * ok / tot)} % de mots justes` : ''; }
     else if (d.gen === 'erreur') extra = `${Object.values(pr).filter(r => r.ok).length} trouvée(s)`;
+    else if (d.gen === 'connect') extra = Object.values(pr).map(r => `${r.err} erreur(s), ${Math.round(r.ms / 1000)} s`).join(' · ');
     else if (d.gen === 'ordre') extra = Object.values(pr).map(r => `${r.good}/${r.total} bien placés`).join(', ');
     return `<tr><td>${pn(p)}</td><td>${done}/${n} ${label} ${done >= n && n ? '✅' : ''}</td><td class="hint">${extra}</td><td class="t">${pts}</td></tr>`; }).join('')}</table></div>`;
 }
@@ -1043,6 +1098,10 @@ function selfMine(d) {
       return `<div class="ocard ${cls}" data-act="${fb ? 'noop' : 'ordTap'}" data-k="${k}"><span class="num">${pos >= 0 ? pos + 1 : ''}</span>${esc(V(it.t, n))}${extra}</div>`; }).join('');
     return `<div class="card">${hdr}<span class="chip">${esc(it.t)} · ${it.seq.length} versets</span><p class="hint">Touche les versets du plus petit numéro au plus grand (touche à nouveau pour annuler).</p>${cards}
       ${fb ? `<div class="verdict ${LOC.res.ok ? 'ok' : 'ko'}">${LOC.res.good}/${LOC.res.total} bien placés (ordre : v${it.seq.join(', v')})</div>${next}` : `<div class="row"><button data-act="ordReset">Recommencer</button><button class="primary grow" data-act="ordCheck" ${order.length === it.sh.length ? '' : 'disabled'}>Valider</button></div>`}</div>`;
+  }
+  if (d.gen === 'connect') {
+    if (fb) return `<div class="card">${hdr}<span class="chip">${esc(it.t)}</span><div class="verdict ${LOC.res.err ? '' : 'ok'}">✓ Tout relié en ${Math.round(LOC.res.ms / 1000)} s · ${LOC.res.err} erreur(s)</div>${next}</div>`;
+    return `<div class="card">${hdr}${connectHTML(it, LOC)}</div>`;
   }
   if (d.gen === 'erreur') {
     const ts = toks(it.txt); const inR = j => j >= it.a && j <= it.b;
@@ -1188,11 +1247,12 @@ const ACT = {
   },
   ordTap(ds) { const o = LOC.order || (LOC.order = []); const k = +ds.k; const i = o.indexOf(k); if (i >= 0) o.splice(i); else o.push(k); renderMine(); },
   ordReset() { LOC.order = []; renderMine(); },
+  cnV(ds) { cnPickG('v', ds.v); }, cnN(ds) { cnPickG('n', ds.v); },
   ordCheck() { const it = S.d.items[ME][LOC.cur]; const ch = LOC.order.map(k => it.sh[k]); const good = ch.filter((n, i) => n === it.seq[i]).length;
     LOC.res = { good, total: it.seq.length, ok: good === it.seq.length, pts: good * 2 + (good === it.seq.length ? 5 : 0) }; selfSubmit(); },
   errTap(ds) { LOC.pick = +ds.j; renderMine(true); },
   errCheck() { const it = S.d.items[ME][LOC.cur]; if (LOC.pick == null) return; const ok = LOC.pick >= it.a && LOC.pick <= it.b; LOC.res = { ok, ms: Date.now() - LOC.t0, pts: ok ? 10 : 0 }; selfSubmit(); },
-  selfNext() { LOC.cur++; LOC.ph = 'q'; LOC.order = []; LOC.vals = {}; LOC.pick = null; LOC.t0 = Date.now(); renderMine(); window.scrollTo({ top: $('#mine').offsetTop - 70, behavior: 'smooth' }); },
+  selfNext() { LOC.cur++; LOC.ph = 'q'; LOC.order = []; LOC.vals = {}; LOC.pick = null; LOC.m = []; LOC.err = 0; LOC.fl = {}; LOC.sv = LOC.sn = null; LOC.t0 = Date.now(); renderMine(); window.scrollTo({ top: $('#mine').offsetTop - 70, behavior: 'smooth' }); },
   // animateur
   go(ds) { if (S.step && S.step !== ds.id && !confirm('Lancer « ' + stepDef(ds.id).titre + ' » ?')) return; startStep(ds.id); },
   next() { nextPartOrStep(); },
@@ -1226,6 +1286,11 @@ function answerTimed(v, forceMs) {
   LOC.sent = true; LOC.v = v; LOC.ms = ms;
   send({ type: 'answer', r, v, ms }, s => !s.d || s.d.mode !== 'timed' || s.d.r !== r || !!s.d.a[ME]);
   renderMine();
+}
+function cnPickG(side, v) {
+  const it = S.d.items[ME][LOC.cur]; const r = connectPick(it, LOC, side, v); renderMine(true);
+  if (r === 'ok' || r === 'ko') { const f = LOC.fl; setTimeout(() => { if (LOC.fl === f) { LOC.fl = {}; renderMine(true); } }, 650); }
+  if (r === 'done') { const k = it.vs.length, err = LOC.err || 0; LOC.res = { good: k, total: k, err, ms: Date.now() - LOC.t0, pts: Math.max(2, 15 - 2 * err) }; setTimeout(selfSubmit, 500); }
 }
 function selfSubmit() {
   const i = LOC.cur; const res = LOC.res; LOC.ph = 'fb';

@@ -126,6 +126,17 @@ body.table .wrap{max-width:1200px}
 body.table .bigcard{width:220px;height:300px;font-size:110px}
 .fav{border-left:4px solid var(--accent);padding-left:10px}
 .qcard{font-size:22px;font-weight:600}
+.cgrid{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start;margin-top:8px}
+.ccol{display:grid;gap:6px;min-width:0}
+.cnums{position:sticky;top:70px;grid-template-columns:52px}.cnums.two{grid-template-columns:48px 48px}
+.cv{text-align:left;font-size:14px;line-height:1.35;padding:8px 10px;min-height:0;border-radius:10px}
+.cn{font-size:19px;font-weight:800;min-height:44px;padding:4px;border-radius:10px}
+.cv.sel,.cn.sel{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.cv.ok,.cn.ok{background:var(--soft);color:var(--good);border-color:var(--good);opacity:.7}
+.cv.flok,.cn.flok{background:var(--good);color:#fff;border-color:var(--good);opacity:1}
+.cv.flko,.cn.flko{background:var(--bad);color:#fff;border-color:var(--bad);animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@media (prefers-reduced-motion:reduce){.flko{animation:none}}
 </style>
 <style>
 .home-hero{padding:18px 0 6px}
@@ -351,6 +362,7 @@ const SELF = {
     }
     return out;
   },
+  connect(p) { return connectItems(p); },
   erreur(p) {
     const out = []; const u = [];
     for (let f = 0; f < (+P().erreur_fois || 5); f++) {
@@ -359,6 +371,46 @@ const SELF = {
     return out;
   },
 };
+
+
+// ───────── Connecter verset ↔ numéro (partagé par les deux apps) ─────────
+let AC = null;
+function sfx(ok) {
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume();
+    const t = AC.currentTime;
+    const note = (f, st, d, type, vol) => { const o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.setValueAtTime(f, t + st);
+      g.gain.setValueAtTime(0.0001, t + st); g.gain.exponentialRampToValueAtTime(vol, t + st + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + st + d);
+      o.connect(g); g.connect(AC.destination); o.start(t + st); o.stop(t + st + d + 0.03); };
+    if (ok) { note(1318.5, 0, 0.2, 'sine', 0.25); note(1975.5, 0.09, 0.4, 'sine', 0.2); }          // ting !
+    else { note(92, 0, 0.32, 'sawtooth', 0.22); note(97, 0, 0.32, 'square', 0.08); if (navigator.vibrate) navigator.vibrate(120); }  // brr
+  } catch (e) {}
+}
+function connectItems(p) {
+  const by = {}; poolOf(p).forEach(v => (by[v.t] = by[v.t] || []).push(v.n));
+  return Object.keys(by).filter(t => by[t].length >= 2).map(t => ({ t, vs: shuffle(by[t]), ns: shuffle(by[t]) }));
+}
+function connectHTML(it, L) {
+  const m = L.m || []; const fl = L.fl || {};
+  const left = it.vs.map(n => { const done = m.includes(n);
+    const cls = 'cv' + (done ? ' ok' : '') + (L.sv === n ? ' sel' : '') + (fl.v === n ? (fl.ok ? ' flok' : ' flko') : '');
+    return `<button class="${cls}" data-act="cnV" data-v="${n}" ${done ? 'disabled' : ''}>${done ? `<b>v${n}</b> · ` : ''}${esc(V(it.t, n))}</button>`; }).join('');
+  const right = it.ns.map(n => { const done = m.includes(n);
+    const cls = 'cn' + (done ? ' ok' : '') + (L.sn === n ? ' sel' : '') + (fl.n === n ? (fl.ok ? ' flok' : ' flko') : '');
+    return `<button class="${cls}" data-act="cnN" data-v="${n}" ${done ? 'disabled' : ''}>${n}</button>`; }).join('');
+  return `<span class="chip">${esc(it.t)} · ${it.vs.length} versets</span> <span class="hint">${m.length}/${it.vs.length} reliés · ${L.err || 0} erreur(s)</span>
+    <p class="hint">Touche un verset puis son numéro (ou l’inverse). Ting = juste, brr = faux.</p>
+    <div class="cgrid"><div class="ccol">${left}</div><div class="ccol cnums ${it.ns.length > 8 ? 'two' : ''}">${right}</div></div>`;
+}
+function connectPick(it, L, side, val) {   // → 'sel' | 'ok' | 'ko' | 'done'
+  val = +val; if ((L.m || []).includes(val)) return 'sel';
+  if (side === 'v') L.sv = L.sv === val ? null : val; else L.sn = L.sn === val ? null : val;
+  if (L.sv == null || L.sn == null) return 'sel';
+  const ok = L.sv === L.sn; L.fl = { v: L.sv, n: L.sn, ok };
+  if (ok) (L.m = L.m || []).push(L.sv); else L.err = (L.err || 0) + 1;
+  L.sv = null; L.sn = null; sfx(ok);
+  return (L.m || []).length === it.vs.length ? 'done' : ok ? 'ok' : 'ko';
+}
 
 
 
@@ -391,6 +443,7 @@ const EX = {
   suivant: { ico: '⏭️', titre: 'Le verset suivant', desc: 'Un verset s’affiche : récite le suivant ou le précédent.', n: 8 },
   trous: { ico: '✍️', titre: 'Texte à trous', desc: 'Complète les mots cachés. Choisis ton niveau.', n: 5 },
   ordre: { ico: '🔀', titre: 'Remets dans l’ordre', desc: 'Des versets pris çà et là : remets-les dans l’ordre.', n: 3 },
+  connect: { ico: '🔗', titre: 'Connecter verset ↔ numéro', desc: 'Relie chaque verset à son numéro : ting si c’est juste, brr si c’est faux.', n: 1 },
   erreur: { ico: '🔎', titre: 'Trouve l’erreur', desc: 'Un détail a été changé (synonyme, ordre…) : repère-le.', n: 5 },
   v2num: { ico: '⏱️', titre: 'Verset → numéro', desc: 'Chrono 10 s : donne le numéro du verset.', n: 10, sec: 10 },
   premdern: { ico: '⏱️', titre: 'Premier ou dernier mot', desc: 'Chrono 10 s : quel est le premier / dernier mot du verset N ?', n: 10, sec: 10 },
@@ -419,11 +472,12 @@ let RUN = null;   // {ex, items, i, res:[], L:{}}
 function startRun(ex, opt) {
   if (!poolMe().length) { view = 'prog'; render(); return; }
   const u = []; const kinds = ex === 'defi' ? shuffle(DEFI) : Array(EX[ex].n).fill(ex);
-  const items = kinds.map(k => makeItem(k, u, opt)).filter(Boolean);
+  const items = ex === 'connect' ? connectItems(ME).map(q => ({ kind: 'connect', q })) : kinds.map(k => makeItem(k, u, opt)).filter(Boolean);
+  if (!items.length) { alert('Il faut au moins 2 versets appris.'); return; }
   RUN = { ex, items, i: 0, res: [], L: { t0: Date.now() } };
   view = 'run'; render(); scrollTo(0, 0);
 }
-const refOf = it => it.kind === 'ordre' ? it.q.seq.map(n => it.q.t + '|' + n) : it.kind === 'mots' ? it.q.ans : [it.q.t + '|' + it.q.n];
+const refOf = it => it.kind === 'connect' ? [] : it.kind === 'ordre' ? it.q.seq.map(n => it.q.t + '|' + n) : it.kind === 'mots' ? it.q.ans : [it.q.t + '|' + it.q.n];
 function finishItem(score, extra) {
   const it = RUN.items[RUN.i]; if (RUN.L.done) return;
   Object.assign(RUN.L, { done: true, score }, extra || {});
@@ -501,6 +555,9 @@ function itemHTML(it) {
         return `<div class="ocard ${cls}" data-act="${L.done ? 'noop' : 'ordTap'}" data-k="${k}"><span class="num">${pos >= 0 ? pos + 1 : ''}</span>${esc(V(q.t, n))}${extra}</div>`; }).join('');
       return `<span class="chip">${esc(q.t)} · ${q.seq.length} versets</span><p class="hint">Touche les versets du plus petit numéro au plus grand (touche à nouveau pour annuler).</p>${cards}` +
         (L.done ? verdict(L.score >= .999, `${L.good}/${q.seq.length} bien placés (ordre : v${q.seq.join(', v')})`) + nextBtn() : `<div class="row"><button data-act="ordReset">Recommencer</button><button class="primary grow" data-act="ordCheck" ${order.length === q.sh.length ? '' : 'disabled'}>Valider</button></div>`); }
+    case 'connect': {
+      if (L.done) return `<span class="chip">${esc(q.t)}</span>` + verdict(!L.err, `✓ Tout relié en ${Math.round(L.ms / 1000)} s · ${L.err || 0} erreur(s)`) + nextBtn();
+      return connectHTML(q, L); }
     case 'erreur': {
       const ts = toks(q.txt); const inR = j => j >= q.a && j <= q.b;
       const body = ts.map((x, j) => { let cls = '';
@@ -532,7 +589,7 @@ function homeHTML() {
       <button class="ex defi" data-act="start" data-ex="defi"><span class="ico">⭐</span><span class="txt"><b>Défi du jour</b><span>12 questions mélangées, tous les exercices</span></span><span class="best">${st.defi ? st.defi.best + ' %' : ''}</span></button>
     </div>
     <div class="sec-title">Par cœur</div><div class="exlist">${['num2verse', 'initiales', 'suivant', 'trous'].map(k => exBtn(k, EX[k])).join('')}</div>
-    <div class="sec-title">Repérage</div><div class="exlist">${['ordre', 'erreur'].map(k => exBtn(k, EX[k])).join('')}</div>
+    <div class="sec-title">Repérage</div><div class="exlist">${['ordre', 'connect', 'erreur'].map(k => exBtn(k, EX[k])).join('')}</div>
     <div class="sec-title">Rapidité</div><div class="exlist">${['v2num', 'premdern', 'mots'].map(k => exBtn(k, EX[k])).join('')}</div>
     ${miss.length ? `<div class="sec-title">Versets à revoir</div><div class="card"><div class="revoir">${miss.map(([k]) => { const x = unkey(k); return `<span class="mini" data-act="showV" data-k="${esc(k)}">${esc(x.t.replace('Romains', 'Rm').replace('Colossiens', 'Col'))} v${x.n}</span>`; }).join('')}</div><div id="vshow"></div></div>` : ''}
     <div class="row" style="margin:18px 0"><button class="small" data-act="prog">📖 Changer ma progression</button></div>`;
@@ -591,6 +648,11 @@ function tick() {
   }
 }
 setInterval(tick, 100);
+function cnPickP(side, v) {
+  const q = RUN.items[RUN.i].q; const L = RUN.L; const y = scrollY; const r = connectPick(q, L, side, v); render(); scrollTo(0, y);
+  if (r === 'ok' || r === 'ko') { const f = L.fl; setTimeout(() => { if (RUN && RUN.L === L && L.fl === f && !L.done) { L.fl = {}; const y2 = scrollY; render(); scrollTo(0, y2); } }, 650); }
+  if (r === 'done') setTimeout(() => { const y3 = scrollY; finishItem(q.vs.length / (q.vs.length + (L.err || 0)), { ms: Date.now() - L.t0 }); scrollTo(0, Math.min(y3, 0)); }, 500);
+}
 function timedAnswer(v) {
   const it = RUN.items[RUN.i], q = it.q, L = RUN.L; if (L.done) return;
   const ms = Math.min(EX[it.kind].sec * 1000, Date.now() - L.t0);
@@ -632,6 +694,7 @@ const ACT = {
   },
   ordTap(ds) { const o = RUN.L.order || (RUN.L.order = []); const k = +ds.k; const i = o.indexOf(k); if (i >= 0) o.splice(i); else o.push(k); render(); },
   ordReset() { RUN.L.order = []; render(); },
+  cnV(ds) { cnPickP('v', ds.v); }, cnN(ds) { cnPickP('n', ds.v); },
   ordCheck() { const q = RUN.items[RUN.i].q; const ch = RUN.L.order.map(k => q.sh[k]); const good = ch.filter((n, i) => n === q.seq[i]).length; finishItem(good / q.seq.length, { good }); },
   errTap(ds) { RUN.L.pick = +ds.j; render(); },
   errCheck() { const q = RUN.items[RUN.i].q; if (RUN.L.pick == null) return; finishItem(RUN.L.pick >= q.a && RUN.L.pick <= q.b ? 1 : 0); },
