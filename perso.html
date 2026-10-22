@@ -678,7 +678,7 @@ function saveQZ() { QZ.ts = Date.now(); try { localStorage.setItem(QKEY, JSON.st
 const qBank = () => (QUIZ[ME] || []).filter(q => !QZ.only || q.v.every(([t, n]) => n <= (ST.prog[t] || 0)));
 function qStatus(id) {   // 'g' vert · 'o' orange · 'r' rouge · 'n' nouvelle (compte comme rouge)
   const s = QZ.st[id]; if (!s || !s.h.length) return 'n';
-  const l3 = s.h.slice(-3); if (l3.length === 3 && l3.every(x => x)) return 'g';
+  const l2 = s.h.slice(-2); if (l2.length === 2 && l2.every(x => x)) return 'g';   // vert : 2 fois juste d’affilée
   const avg = s.h.reduce((a, b) => a + b, 0) / s.h.length; return avg >= .5 ? 'o' : 'r';
 }
 const COL = { g: '#1f9d55', o: '#e08a00', r: '#d64545', n: '#d64545' };
@@ -733,7 +733,7 @@ function quizHTML() {
   return `<div class="qz-hero"><div class="qz-chip">Questions type Quiz · ${esc(TEXTE_DE[ME].join(' + '))}</div>
     <div class="qz-pct" style="margin-top:10px">${pct} %</div><div class="muted">du jeu accompli : ${c.g} question${c.g > 1 ? 's' : ''} dans le vert sur ${bank.length}</div></div>
   <div class="card"><div class="qz-bar"><i style="width:${100 * c.g / tot}%;background:${COL.g}"></i><i style="width:${100 * c.o / tot}%;background:${COL.o}"></i><i style="width:${100 * (c.r + c.n) / tot}%;background:${COL.r}"></i></div>
-    <div class="qz-legend"><div class="qz-leg c-g"><b>${c.g}</b><span>Vert<br>3 fois juste d’affilée</span></div><div class="qz-leg c-o"><b>${c.o}</b><span>Orange<br>50 à 99 % de réussite</span></div><div class="qz-leg c-r"><b>${c.r + c.n}</b><span>Rouge<br>moins de 50 %${c.n ? ` · dont ${c.n} jamais vues` : ''}</span></div></div>
+    <div class="qz-legend"><div class="qz-leg c-g"><b>${c.g}</b><span>Vert<br>2 fois juste d’affilée</span></div><div class="qz-leg c-o"><b>${c.o}</b><span>Orange<br>50 à 99 % de réussite</span></div><div class="qz-leg c-r"><b>${c.r + c.n}</b><span>Rouge<br>moins de 50 %${c.n ? ` · dont ${c.n} jamais vues` : ''}</span></div></div>
     <button class="primary" style="width:100%;margin-top:14px;min-height:56px;font-size:18px" data-act="qStart" ${bank.length && c.g < bank.length ? '' : 'disabled'}>▶ Lancer la série</button>
     ${c.g === bank.length && bank.length ? '<p style="text-align:center;font-weight:700;color:#1f9d55">🏆 Toutes les questions sont dans le vert !</p>' : ''}</div>
   <div class="card"><h3 style="margin-top:0">Par type de question</h3>${Object.entries(cats).map(([k, v]) => `<div class="qz-cat"><span>${esc(k)}</span><span class="mb"><i style="width:${100 * v.g / v.t}%;background:${COL.g}"></i><i style="width:${100 * v.o / v.t}%;background:${COL.o}"></i><i style="width:${100 * v.r / v.t}%;background:${COL.r}"></i></span><span class="n">${v.g}/${v.t}</span></div>`).join('')}</div>
