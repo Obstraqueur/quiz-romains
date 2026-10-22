@@ -166,9 +166,9 @@ const BANQUE = {
     ['incorruptibilité'], ['vie éternelle', 'vie éternelle'], ['indignation'], ['révolte'], ['détresse'], ['angoisse'], ['favoritisme'],
     ['naturellement'], ['conscience'], ['pensées'], ['Jésus-Christ', 'Jésus-Christ'], ['secret'], ['fierté'], ['aveugles'], ['ténèbres'],
     ['ignorants'], ['enfants'], ['voler (et « voles »)', 'voler|voles'], ['adultère'], ['idoles'], ['temples'], ['blasphémé'], ['nations'],
-    ['commandements'], ['louange'], ['Esprit', 'Esprit', true], ['intérieurement'], ['non-Juif', 'non-Juifs?'], ['cœur'], ['honneur'],
+    ['commandements'], ['louange'], ['Esprit', 'Esprit', true], ['intérieurement'], ['non-Juif(s)', 'non-Juifs?'], ['cœur'], ['honneur'],
     ['gloire'], ['jour'], ['actes'], ['écrite'], ['nom'], ['circoncision (et dérivés)', 'circoncision|incirconcision|circoncis|incirconcis'],
-    ['juger (et dérivés)', 'juges|jugeant|jugement|jugera|jugés'], ['condamner (et dérivés)', 'condamnes|condamnera'], ['loi'], ['Juif', '(?<!non-)Juifs?'],
+    ['juger (et dérivés)', 'juges|jugeant|jugement|jugera|jugés'], ['condamner (et dérivés)', 'condamnes|condamnera'], ['loi'], ['Juif(s) (sans « non-Juif »)', '(?<!non-)Juifs?'],
     ['péché', 'péché'], ['pratique'], ['volonté'], ['instruit'],
   ],
   comptes: [
@@ -217,7 +217,7 @@ const BANQUE = {
 'Romains 12': {
   termes: [
     ['compassions'], ['sacrifice'], ['culte'], ['monde'], ['transformés'], ['renouvellement'], ['intelligence'], ['volonté'], ['opinion'],
-    ['modestes'], ['mesure'], ['membres'], ['fonction'], ['dons', 'dons?'], ['prophétie'], ['service'], ['enseignement'], ['générosité'],
+    ['modestes'], ['mesure'], ['membres'], ['fonction'], ['don(s)', 'dons?'], ['prophétie'], ['service'], ['enseignement'], ['générosité'],
     ['zèle'], ['bienveillance'], ['joie'], ['hypocrisie'], ['horreur'], ['affection'], ['estime'], ['paresse'], ['fervents'], ['espérance'],
     ['détresse'], ['prière'], ['saints'], ['hospitalité'], ['persécutent'], ['maudissez'], ['pleurent'], ['humble'], ['sages'], ['paix'],
     ['vengez|vengeance', 'vengez|vengeance'], ['colère'], ['ennemi'], ['faim'], ['soif'], ['charbons'], ['tête'], ['vaincre|vainqueur', 'vaincre|vainqueur'],
@@ -266,8 +266,8 @@ const BANQUE = {
 
 'Romains 13': {
   termes: [
-    ['autorités', 'autorités?'], ['gouvernent'], ['établies|établi', 'établies|établi'], ['ordre'], ['condamnation'], ['craindre|crainte', 'craindre|crainte'],
-    ['magistrats', 'magistrats?'], ['approbation'], ['épée'], ['colère'], ['conscience'], ['impôts', 'impôts?'], ['taxe'], ['respect'], ['honneur'],
+    ['autorité(s)', 'autorités?'], ['gouvernent'], ['établies|établi', 'établies|établi'], ['ordre'], ['condamnation'], ['craindre|crainte', 'craindre|crainte'],
+    ['magistrat(s)', 'magistrats?'], ['approbation'], ['épée'], ['colère'], ['conscience'], ['impôt(s)', 'impôts?'], ['taxe'], ['respect'], ['honneur'],
     ['dû'], ['adultère'], ['meurtre'], ['vol'], ['témoignage'], ['convoiteras|convoitises', 'convoiteras|convoitises'], ['prochain'],
     ['accomplissement|accompli', 'accomplissement|accompli'], ['sommeil'], ['salut'], ['nuit'], ['jour'], ['ténèbres'], ['armes'], ['lumière'],
     ['orgies'], ['ivrognerie'], ['immoralité'], ['débauche'], ['dispute'], ['jalousie'], ['nature'], ['serviteur(s)', 'serviteurs?'],
@@ -477,6 +477,8 @@ const ROOM = (QS.get('salle') || SALLE).replace(/[^a-zA-Z0-9_-]/g, '');
 const LOCAL = QS.has('local');
 const BROKER_LIST = QS.get('broker') ? QS.get('broker').split(',') : BROKERS;
 const BASE = 'qbsalves/' + ROOM;
+const PBASE = 'qbperso/romains-2026';   // suivi des apps perso
+const PERSO = {};
 const store = LOCAL ? sessionStorage : localStorage;
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -705,8 +707,8 @@ class MqttNet {
     if (typeof mqtt === 'undefined') { this.onStatus(); return; }
     this.clients = BROKER_LIST.map(url => {
       const c = mqtt.connect(url, { clientId: 'qs_' + Math.random().toString(36).slice(2, 10), clean: true, reconnectPeriod: 2500, connectTimeout: 10000, keepalive: 30 });
-      c.on('connect', () => { c.subscribe(BASE + '/#', { qos: 1 }); this.onStatus(); });
-      c.on('message', (topic, payload) => { try { this.onMsg(topic.slice(BASE.length + 1), JSON.parse(payload.toString())); } catch (e) {} });
+      c.on('connect', () => { c.subscribe(BASE + '/#', { qos: 1 }); if (ROLE === 'coach') c.subscribe(PBASE + '/#', { qos: 0 }); this.onStatus(); });
+      c.on('message', (topic, payload) => { try { if (topic.startsWith(PBASE + '/')) onPerso(JSON.parse(payload.toString())); else this.onMsg(topic.slice(BASE.length + 1), JSON.parse(payload.toString())); } catch (e) {} });
       ['close', 'offline', 'reconnect'].forEach(ev => c.on(ev, () => this.onStatus()));
       c.on('error', () => {});
       return c;
@@ -724,6 +726,24 @@ class LocalNet {
   count() { return 1; }
   publish(sub, msg, retain) { if (retain) localStorage.setItem('ret:' + BASE + '/' + sub, JSON.stringify(msg)); this.ch.postMessage({ sub, msg }); }
 }
+function onPerso(m) { if (!m || !JEUNES.includes(m.J)) return; if (PERSO[m.J] && (PERSO[m.J].at || 0) > (m.at || 0)) return; PERSO[m.J] = m; if (VIEW.admin && VIEW.tab === 'suivi') render(); }
+const ago = t => { if (!t) return 'jamais'; const s = Math.round((Date.now() - t) / 1000); return s < 60 ? 'à l’instant' : s < 3600 ? 'il y a ' + Math.round(s / 60) + ' min' : s < 86400 ? 'il y a ' + Math.round(s / 3600) + ' h' : 'il y a ' + Math.round(s / 86400) + ' j'; };
+function suiviHTML() {
+  const C = { g: '#1f9d55', o: '#e08a00', r: '#d64545' };
+  return JEUNES.map(j => { const m = PERSO[j];
+    if (!m) return `<div class="card"><h2 style="margin:0">${esc(j)}</h2><p class="hint">Pas encore de données : ${esc(j)} n’a pas encore ouvert la nouvelle version de son app perso.</p></div>`;
+    const s = m.sum || {}; const live = Date.now() - (m.at || 0) < 120000; const tot = s.tot || 1;
+    const rec = ((m.qz && m.qz.recent) || []).slice().reverse();
+    const weak = Object.entries(s.cats || {}).filter(([k, v]) => v.ans >= 3).map(([k, v]) => [k, v.err / v.ans]).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    return `<div class="card"><div class="row"><h2 class="grow" style="margin:0">${esc(j)}</h2><span class="hint">${live ? '🟢 en train de jouer' : '⚪️ ' + ago(m.at)}</span></div>
+      <div class="row" style="margin:8px 0"><b style="font-size:32px">${s.pct || 0} %</b><span class="hint grow">du Quiz dans le vert · ${s.answered || 0} réponses au total</span></div>
+      <div style="display:flex;height:12px;border-radius:99px;overflow:hidden;background:var(--soft)"><i style="width:${100 * s.g / tot}%;background:${C.g}"></i><i style="width:${100 * s.o / tot}%;background:${C.o}"></i><i style="width:${100 * (s.r + s.n) / tot}%;background:${C.r}"></i></div>
+      <p class="hint" style="margin:6px 0"><b style="color:${C.g}">${s.g} vertes</b> · <b style="color:${C.o}">${s.o} orange</b> · <b style="color:${C.r}">${s.r} rouges</b> · ${s.n} jamais vues · sur ${s.tot}</p>
+      ${weak.length ? `<p class="hint" style="margin:4px 0">Plus ratées : ${weak.map(([k, r]) => `${esc(k)} (${Math.round(100 * r)} % d’erreurs)`).join(' · ')}</p>` : ''}
+      <p class="hint" style="margin:4px 0">Par cœur : 🔥 ${m.coeur ? m.coeur.streak : 0} jour(s) d’affilée · ${m.coeur ? m.coeur.days : 0} jour(s) d’entraînement</p>
+      ${rec.length ? `<details ${live ? 'open' : ''}><summary>Dernières réponses</summary>${rec.slice(0, 10).map(r => `<div class="qline"><span class="${r.ok ? 'okc' : 'koc'}">${r.ok ? '✓' : '✗'}</span> <span class="hint">${esc(r.cat)} · ${ago(r.at)}</span><div style="font-size:14px">${esc(r.q)}</div></div>`).join('')}</details>` : ''}</div>`; }).join('');
+}
+setInterval(() => { if (ROLE === 'coach' && VIEW.admin && VIEW.tab === 'suivi') render(); }, 30000);
 function onMsg(sub, msg) {
   if (sub === 'cfg') { if (msg && msg.ts > CFG.ts) { const old = CFG.salve; CFG = msg; if (ROLE === 'coach' && VIEW.y && !VIEW.admin && msg.salve !== old) { VIEW.y = jeuneDe(ME, msg.salve); VIEW.confirmNew = false; scrollTo(0, 0); } render(); } }
   else if (sub.startsWith('eleve/')) {
@@ -786,7 +806,8 @@ function loginHTML() {
 function adminHTML() {
   const tab = VIEW.tab || 'textes';
   let h = header('Espace admin', 'Coach ' + ME) + `<div class="row" style="margin-bottom:10px"><button class="small" data-act="home">◀ Retour</button></div>
-  <div class="tabs"><button class="small ${tab === 'textes' ? 'sel' : ''}" data-act="tab" data-v="textes">📖 Les textes</button><button class="small ${tab === 'questions' ? 'sel' : ''}" data-act="tab" data-v="questions">📋 Questions par jeune</button></div>`;
+  <div class="tabs"><button class="small ${tab === 'textes' ? 'sel' : ''}" data-act="tab" data-v="textes">📖 Les textes</button><button class="small ${tab === 'questions' ? 'sel' : ''}" data-act="tab" data-v="questions">📋 Questions par jeune</button><button class="small ${tab === 'suivi' ? 'sel' : ''}" data-act="tab" data-v="suivi">📊 Suivi perso</button></div>`;
+  if (tab === 'suivi') return h + `<p class="hint">Progression de chacun dans son app perso, en direct.</p>` + suiviHTML();
   if (tab === 'textes') {
     const all = Object.keys(TEXTES); const t = VIEW.texte || all[0];
     const who = JEUNES.find(j => TEXTE_DE[j].includes(t)); const k = (progOf(who).find(x => x.t === t) || {}).k || 0;
