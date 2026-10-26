@@ -715,8 +715,9 @@ function pickNext(lastId) {
   const any = bank.find(q => qStatus(q.id) !== 'g'); return any ? { q: any, isNew: !QZ.st[any.id] } : null;
 }
 const jitter = (base, j) => base + Math.round((Math.random() * 2 - 1) * j);
+const QUIZ_SEC = 15;   // secondes pour répondre, sinon c’est faux
 function qAnswer(choice) {
-  const R = QRUN; if (!R || R.done) return; const q = R.q; const ok = R.order[choice] === q.r;
+  const R = QRUN; if (!R || R.done) return; const q = R.q; const timeout = choice < 0; const ok = !timeout && R.order[choice] === q.r; R.timeout = timeout;
   const s = QZ.st[q.id] || (QZ.st[q.id] = { h: [], due: 0 }); const before = qStatus(q.id);
   s.h.push(ok ? 1 : 0); if (s.h.length > 12) s.h = s.h.slice(-12);
   QZ.pos++; QZ.log.push(!!R.isNew); if (QZ.log.length > 60) QZ.log = QZ.log.slice(-60);
@@ -731,7 +732,7 @@ function qAnswer(choice) {
 function qNext() { const nx = pickNext(QRUN && QRUN.q && QRUN.q.id); if (!nx) { view = 'quiz'; QRUN = null; render(); return; }
   const q = nx.q; const keep = q.o.length === 2 || q.o.every(o => /^\d+$/.test(o)) || q.o.every(o => /^Verset \d+$/.test(o));
   const order = keep ? q.o.map((_, i) => i) : shuffle(q.o.map((_, i) => i));
-  QRUN = Object.assign(QRUN || { n: 0, okN: 0 }, { q, isNew: nx.isNew, order, done: false, choice: null }); view = 'qrun'; render(); scrollTo(0, 0); }
+  QRUN = Object.assign(QRUN || { n: 0, okN: 0 }, { q, isNew: nx.isNew, order, done: false, choice: null, timeout: false, t0: Date.now() }); view = 'qrun'; render(); scrollTo(0, 0); }
 function quizHTML() {
   const bank = qBank(); const all = QUIZ[ME] || [];
   const c = { g: 0, o: 0, r: 0, n: 0 }; bank.forEach(q => c[qStatus(q.id)]++);
@@ -745,7 +746,7 @@ function quizHTML() {
     ${c.g === bank.length && bank.length ? '<p style="text-align:center;font-weight:700;color:#1f9d55">🏆 Toutes les questions sont dans le vert !</p>' : ''}</div>
   <div class="card"><h3 style="margin-top:0">Par type de question</h3>${Object.entries(cats).map(([k, v]) => `<div class="qz-cat"><span>${esc(k)}</span><span class="mb"><i style="width:${100 * v.g / v.t}%;background:${COL.g}"></i><i style="width:${100 * v.o / v.t}%;background:${COL.o}"></i><i style="width:${100 * v.r / v.t}%;background:${COL.r}"></i></span><span class="n">${v.g}/${v.t}</span></div>`).join('')}</div>
   <div class="card"><label class="row" style="gap:10px;align-items:center"><input type="checkbox" id="qonly" ${QZ.only ? 'checked' : ''} style="width:22px;height:22px"> <span><b>Seulement mes versets appris</b><br><span class="hint">${QZ.only ? `${bank.length} questions sur ${all.length} disponibles (${esc(learnedTxt())})` : `Toutes les ${all.length} questions, sur tout le texte`}</span></span></label>
-  <p class="hint" style="margin:10px 0 0">Une question verte ne revient plus. Orange : elle revient environ toutes les 20 questions ; rouge : toutes les 10 ; ratée 3 fois de suite : après environ 30. Au moins la moitié des questions sont nouvelles tant qu’il en reste.</p>
+  <p class="hint" style="margin:10px 0 0">Une question verte ne revient plus. Orange : elle revient environ toutes les 20 questions ; rouge : toutes les 10 ; ratée 3 fois de suite : après environ 30. Au moins la moitié des questions sont nouvelles tant qu’il en reste. Tu as 15 secondes par question : après, c’est compté faux.</p>
   <div class="row" style="margin-top:10px"><button class="small" data-act="qReset">Remettre à zéro</button></div></div>
   ${motsHTML()}`;
 }
@@ -763,11 +764,11 @@ function qrunHTML() {
   let fb = '';
   if (R.done) {
     const move = R.after !== R.before && R.before !== 'n' ? ` · passe en <b style="color:${COL[R.after]}">${STNAME[R.after]}</b>` : R.after === 'g' ? ' · <b style="color:#1f9d55">vert</b>' : ` · <b style="color:${COL[R.after]}">${STNAME[R.after]}</b>`;
-    fb = `<div class="qz-x"><b style="color:${R.ok ? '#1f9d55' : '#d64545'}">${R.ok ? '✓ Juste' : '✗ Faux — réponse : ' + esc(q.o[q.r])}</b>${move}${q.x ? `<div class="hint" style="margin-top:6px;font-size:14px">${esc(q.x)}</div>` : ''}</div>
+    fb = `<div class="qz-x"><b style="color:${R.ok ? '#1f9d55' : '#d64545'}">${R.ok ? '✓ Juste' : (R.timeout ? '⏱ Temps écoulé — réponse : ' : '✗ Faux — réponse : ') + esc(q.o[q.r])}</b>${move}${q.x ? `<div class="hint" style="margin-top:6px;font-size:14px">${esc(q.x)}</div>` : ''}</div>
       <button class="primary" style="width:100%;margin-top:12px;min-height:54px;font-size:18px" data-act="qNext">Question suivante ▶</button>`;
   }
   return `<div class="qz-top"><button class="small" data-act="qQuit">✕</button><span class="grow"><b>${R.n}</b> répondues · <span style="color:#1f9d55">✓ ${R.okN}</span></span><span class="hint">${tag}</span></div>
-  <div class="card"><div class="qz-chip">${esc(q.cat)}</div><div class="qz-q">${esc(q.q)}</div><div class="qz-grid ${vf ? 'vf' : ''}">${btns}</div>${fb}</div>`;
+  <div class="card"><div class="qz-chip">${esc(q.cat)}</div><div class="qz-q">${esc(q.q)}</div>${R.done ? '' : `<div class="cd" data-end="${R.t0 + QUIZ_SEC * 1000}" data-total="${QUIZ_SEC * 1000}" style="margin:0 0 12px"><div class="cdbar"><i></i></div><b class="cdt"></b></div>`}<div class="qz-grid ${vf ? 'vf' : ''}">${btns}</div>${fb}</div>`;
 }
 function tabsHTML() { return `<div class="row" style="justify-content:flex-end;margin-top:8px"><span class="hint">${esc(ME)}</span><span id="cloudDot" class="cdot${CL.some(c => c.connected) ? ' on' : ''}"></span></div><div class="tabs2" style="margin-top:4px"><button class="${tab === 'quiz' ? 'sel' : ''}" data-act="tab" data-v="quiz">🎯 Questions Quiz</button><button class="${tab === 'coeur' ? 'sel' : ''}" data-act="tab" data-v="coeur">📖 Entraînement par cœur</button></div>`; }
 
@@ -831,6 +832,7 @@ function tick() {
     el.querySelector('.cdt').textContent = left > 0 ? (left / 1000).toFixed(1) + ' s' : 'Temps écoulé';
     el.classList.toggle('late', left < 3000);
   });
+  if (view === 'qrun' && QRUN && !QRUN.done && now > QRUN.t0 + QUIZ_SEC * 1000) qAnswer(-1);
   if (view === 'run' && RUN && !RUN.L.done) {
     const it = RUN.items[RUN.i]; const sec = it && EX[it.kind].sec;
     if (sec && now > RUN.L.t0 + sec * 1000) {
