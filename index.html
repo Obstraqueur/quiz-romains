@@ -137,6 +137,14 @@ body.table .bigcard{width:220px;height:300px;font-size:110px}
 .cv.flko,.cn.flko{background:var(--bad);color:#fff;border-color:var(--bad);animation:shake .3s}
 @keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 @media (prefers-reduced-motion:reduce){.flko{animation:none}}
+
+.av-card{background:#fff;color:#1d1d1f;border-radius:18px;padding:18px 18px 12px;margin:22px 0 0;box-shadow:0 2px 14px rgba(0,0,0,.12);border:1px solid #e6e6e6}
+.av-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px;flex-wrap:wrap}
+.av-title{font-size:22px;font-weight:800}.av-d{color:#666;font-size:14px;text-transform:capitalize}.av-leg{font-size:12px;font-weight:700}
+.av-row{padding:10px 0;border-top:1px solid #eee}.av-top{display:flex;justify-content:space-between;align-items:center}
+.av-n{font-size:19px}.av-t{color:#666;font-size:13px}.av-pct{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums}
+.av-bar{display:flex;height:12px;border-radius:99px;overflow:hidden;background:#eee;margin:6px 0 4px}.av-bar i{display:block;height:100%}
+.av-sub{color:#555;font-size:13px}.av-f{color:#888;font-size:11px;text-align:center;margin-top:8px;border-top:1px solid #eee;padding-top:8px}
 </style>
 </head>
 <body>
@@ -810,7 +818,7 @@ class LocalNet {   // ?local=1 : test sur un seul appareil, plusieurs onglets
     this.ch.postMessage({ sub, msg });
   }
 }
-let net;
+let net; let pnet = null, pavT = 0; const PAV = {};   // PAV : avancement publié par les apps perso
 function newer(a, b) { return !b || a.epoch > b.epoch || (a.epoch === b.epoch && a.rev > b.rev); }
 function onMsg(sub, msg, retained) {
   if (sub === 'state') {
@@ -1193,8 +1201,20 @@ function render() {
   setHTML($('#scores'), scoresHTML());
   tickTimers();
 }
+function avancementHTML() {
+  const C = { g: '#1f9d55', o: '#e08a00', r: '#d64545' };
+  const d = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const rows = JOUEURS.map(p => { const m = PAV[p]; const s = (m && m.sum) || null; const tot = (s && s.tot) || 1;
+    const prog = m && m.st && m.st.setup ? TEXTE_DE[p].map(t => [Math.min(m.st.prog[t] || 0, TEXTES[t].length), TEXTES[t].length]) : null;
+    const vp = prog ? Math.round(100 * prog.reduce((a, x) => a + x[0], 0) / prog.reduce((a, x) => a + x[1], 0)) : null;
+    return `<div class="av-row"><div class="av-top"><div><b class="av-n">${esc(p)}</b><div class="av-t">${esc(TEXTE_DE[p].join(' + '))}</div></div><div class="av-pct" style="color:${s ? C.g : '#999'}">${s ? s.pct + ' %' : '—'}</div></div>
+      <div class="av-bar">${s ? `<i style="width:${100 * s.g / tot}%;background:${C.g}"></i><i style="width:${100 * s.o / tot}%;background:${C.o}"></i><i style="width:${100 * (s.r + s.n) / tot}%;background:${C.r}"></i>` : ''}</div>
+      <div class="av-sub">${s ? `🎯 ${s.g} / ${s.tot} questions dans le vert${vp !== null ? ` · 📖 ${vp} % des versets appris` : ''}${m.coeur && m.coeur.streak ? ` · 🔥 ${m.coeur.streak} j d’affilée` : ''}` : 'Pas encore commencé'}</div></div>`; }).join('');
+  return `<div class="av-card"><div class="av-h"><div><div class="av-title">📊 Avancement Quiz</div><div class="av-d">${esc(d)}</div></div><div class="av-leg"><span style="color:${C.g}">■ vert</span> <span style="color:${C.o}">■ orange</span> <span style="color:${C.r}">■ à revoir</span></div></div>${rows}
+    <div class="av-f">% = questions du Quiz réussies 2 fois d’affilée · Concours biblique · Romains</div></div>`;
+}
 function loginHTML() {
-  return `<div class="wrap"><div style="padding:30px 0 0"><h1 style="font-size:26px;margin:0">📖 Entraînement Quiz biblique</h1><p class="muted">Qui es-tu ?</p></div>
+  return `<div class="wrap">${LOCAL ? '' : avancementHTML()}<div style="padding:30px 0 0"><h1 style="font-size:26px;margin:0">📖 Entraînement Quiz biblique</h1><p class="muted">Qui es-tu ?</p></div>
   <div class="login">${JOUEURS.map(p => `<button data-act="login" data-role="player" data-p="${p}">${pn(p)} <span class="muted" style="font-weight:400;font-size:15px">· ${esc(TEXTE_DE[p].join(' + '))}</span></button>`).join('')}
   <button data-act="login" data-role="admin" data-p="${ANIMATEUR}">🎛 ${esc(ANIMATEUR)} (animateur)</button>
   <button data-act="login" data-role="table" data-p="table">📺 Écran de la table</button></div>
@@ -1328,7 +1348,7 @@ document.addEventListener('toggle', e => { if (e.target.id === 'setdet') LOC.set
 function boot() {
   ROLE = store.getItem('qb_role'); ME = store.getItem('qb_me');
   if (QS.get('moi')) { const m = QS.get('moi'); if (JOUEURS.includes(m)) { ROLE = 'player'; ME = m; } else if (m === 'table') { ROLE = 'table'; ME = 'table'; } else if (m === ANIMATEUR) { ROLE = 'admin'; ME = ANIMATEUR; } }
-  if (!ROLE) { render(); return; }
+  if (!ROLE) { if (!LOCAL && !pnet) { pnet = new MqttNet('qbperso/romains-2026', (sub, m) => { if (!sub.startsWith('eleve/') || !m || !JOUEURS.includes(m.J)) return; if (PAV[m.J] && (PAV[m.J].at || 0) > (m.at || 0)) return; PAV[m.J] = m; if (!ROLE) { clearTimeout(pavT); pavT = setTimeout(render, 300); } }, () => {}); pnet.connect(); } render(); return; }
   document.body.classList.toggle('table', ROLE === 'table');
   net = LOCAL ? new LocalNet(BASE, onMsg, () => render()) : new MqttNet(BASE, onMsg, () => render());
   net.connect();
