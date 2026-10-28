@@ -129,6 +129,19 @@ input.num{width:64px;font:inherit;font-size:16px;padding:4px 6px;border:1px soli
 .qr{background:#fff;border-radius:1vw;padding:1vh}
 .qr svg{display:block;width:clamp(120px,14vw,280px);height:auto}
 .mono{font-family:ui-monospace,Menlo,monospace}
+
+.vcard{background:#fff;color:var(--ink);border-radius:16px;padding:14px;overflow:auto;flex:1}
+.vchip{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.vq{font-size:19px;font-weight:700;line-height:1.4;margin:6px 0 14px}
+.vgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.vopt{display:flex;gap:8px;align-items:flex-start;text-align:left;min-height:68px;padding:10px;font-size:15px;line-height:1.3;border-radius:12px;background:#f3f2f8;color:var(--ink);border:2px solid #dedbe9;touch-action:manipulation}
+.vopt:active{background:#e4e1f3}
+.vopt .L{flex:none;font-weight:900;color:var(--bg)}
+.vgrid.vf .vopt{justify-content:center;font-size:20px;font-weight:800;min-height:76px}
+.vopt.right{background:var(--ok);border-color:var(--ok);color:#fff}.vopt.right .L{color:#fff}
+.vopt.wrong{background:var(--ko);border-color:var(--ko);color:#fff}.vopt.wrong .L{color:#fff}
+.vopt:disabled{opacity:1}
+.vres{display:flex;justify-content:space-between;align-items:center;border-radius:14px;padding:12px 16px;margin-bottom:10px;font-size:20px;font-weight:900;color:#fff}
 </style>
 </head>
 <body>
@@ -2569,7 +2582,7 @@ function prepare() {
 function pubState() {
   if (!hnet) return; const sal = SAL(); const st = { gid: G.gid, scr: G.scr, s: G.s, i: G.i, n: +sal.n, sec: +sal.sec, key: qkey(), pubAt: Date.now(), startAt: G.startAt, dur: G.dur,
     visio: G.cfg.visio, present: G.cfg.present, score: G.score, rank: ranking().map(r => r.J), q: {}, ans: {}, rev: null, rules: sal };
-  if (G.qs && (G.scr === 'q' || G.scr === 'rev')) for (const J of players()) { const q = qOf(J); st.q[J] = G.cfg.visio[J] ? { n: q.o.length, q: q.q, o: q.o } : { n: q.o.length }; }
+  if (G.qs && (G.scr === 'q' || G.scr === 'rev')) for (const J of players()) { const q = qOf(J); st.q[J] = G.cfg.visio[J] ? { n: q.o.length, q: q.q, o: q.o, cat: q.cat } : { n: q.o.length }; }
   for (const J in G.ans) st.ans[J] = 1;
   if (G.scr === 'rev' && G.last) { st.rev = {}; for (const J in G.last.r) { if (!JEUNES.includes(J)) continue; const x = G.last.r[J]; const q = qOf(J); st.rev[J] = { c: x.c, r: q.r, pts: x.pts, b: x.b, el: x.el, ro: G.cfg.visio[J] ? q.o[q.r] : null }; } }
   hnet.pub(BASE + '/state', st, true);
@@ -2869,11 +2882,16 @@ function phoneHTML() {
     if (answered) return `<div class="ph">${top(tag)}<div class="ph-msg"><h2>Réponse envoyée</h2>${PH.sent ? `<p>en ${fmtS(PH.sent.el)}</p>` : ''}<p style="font-size:15px">${P.ans && P.ans[ME] ? 'Bien reçue par l’écran' : 'Envoi…'}</p></div></div>`;
     const el = performance.now() - PH.t0; if (el > P.dur * 1000) return `<div class="ph">${top(tag)}<div class="ph-msg"><div class="big">⏱</div><h2>Temps écoulé</h2></div></div>`;
     const vis = P.visio[ME] && qi.o;
+    if (vis) return `<div class="ph">${top(tag)}<div class="ph-bar"><i id="pbar"></i></div>${visCard(qi, null)}</div>`;
     return `<div class="ph">${top(tag)}<div class="ph-bar"><i id="pbar"></i></div>${vis ? `<div class="ph-q">${esc(qi.q)}</div>` : ''}
       <div class="pads ${qi.n === 2 ? 'two' : ''} ${vis ? 'vis' : ''}">${Array.from({ length: qi.n }, (_, i) => { const c = colOf(qi.n, i); return `<div class="pad" data-c="${i}" style="background:${c.c}"><span>${c.s}</span>${vis ? `<span class="tx">${brk(qi.o[i])}</span>` : ''}</div>`; }).join('')}</div></div>`;
   }
   if (P.scr === 'rev' && P.rev && P.rev[ME]) {
     const x = P.rev[ME]; const ok = x.c >= 0 && x.c === x.r;
+    if (P.visio[ME] && P.q && P.q[ME] && P.q[ME].o) {
+      const res = `<div class="vres ${x.c < 0 ? 'res-nr' : ok ? 'res-ok' : 'res-ko'}"><b>${x.c < 0 ? '⏱ Pas de réponse' : ok ? '✓ Bonne réponse' : '✗ Mauvaise réponse'}</b><span>${sgn(x.pts)}${x.b ? ` <span style="color:#ffe680">⚡+${x.b}</span>` : ''}${x.el != null ? ` · ${fmtS(x.el)}` : ''}</span></div>`;
+      return `<div class="ph">${top(scoreTag)}${res}${visCard(P.q[ME], x)}</div>`;
+    }
     const cls = x.c < 0 ? 'res-nr' : ok ? 'res-ok' : 'res-ko';
     return `<div class="ph ${cls}">${top(scoreTag)}<div class="ph-msg"><div class="big">${x.c < 0 ? '⏱' : ok ? '🎉' : '❌'}</div><h2>${x.c < 0 ? 'Pas de réponse' : ok ? 'Bonne réponse !' : 'Mauvaise réponse'}</h2>
       <p style="font-size:44px;font-weight:900;color:#fff">${sgn(x.pts)}${x.b ? ` <span style="color:#ffe680">⚡+${x.b}</span>` : ''}</p>${x.el != null ? `<p>en ${fmtS(x.el)}</p>` : ''}${x.ro ? `<p>Réponse : <b>${esc(x.ro)}</b></p>` : ''}<p>Regarde le grand écran 👀</p></div></div>`;
@@ -2883,13 +2901,19 @@ function phoneHTML() {
   if (P.scr === 'end') return `<div class="ph">${top(scoreTag)}<div class="ph-msg"><div class="big">🏆</div><h2>Fin du quiz blanc !</h2><p>Tu termines ${rk}${rk === 1 ? 'er' : 'e'} avec ${score} points.</p></div></div>`;
   return wait(P.visio[ME] ? '📹 Mode visio : les questions et les réponses s’afficheront ici.' : 'Regarde le grand écran : ici tu n’auras que les 4 couleurs.', P.scr === 'setup' || P.scr === 'lobby' ? '' : scoreTag);
 }
+function visCard(qi, x) {
+  const L = 'ABCD'; const vf = qi.o.length === 2;
+  return `<div class="vcard"><div class="vchip">${esc(qi.cat || '')}</div><div class="vq">${esc(qi.q)}</div><div class="vgrid ${vf ? 'vf' : ''}">${qi.o.map((o, i) => {
+    let cls = ''; if (x) { if (i === x.r) cls = 'right'; else if (i === x.c) cls = 'wrong'; }
+    return `<button class="vopt ${cls}" data-c="${i}" ${x ? 'disabled' : ''}>${vf ? '' : `<span class="L">${L[i]}</span>`}<span>${brk(o)}</span></button>`; }).join('')}</div></div>`;
+}
 function phoneTick() {
   if (!P || P.scr !== 'q') return; const b = document.getElementById('pbar');
   const el = performance.now() - PH.t0; if (b) b.style.width = Math.max(0, 100 * (1 - el / (P.dur * 1000))) + '%';
   if (el > P.dur * 1000 && document.querySelector('.pad')) render();
 }
 // réponse au toucher immédiat (pointerdown, sans attendre le « click »)
-document.addEventListener('pointerdown', e => { if (ROLE !== 'phone') return; const p = e.target.closest('.pad'); if (p) { e.preventDefault(); phoneAnswer(+p.dataset.c); } });
+document.addEventListener('pointerdown', e => { if (ROLE !== 'phone') return; const p = e.target.closest('.pad, .vopt:not([disabled])'); if (p) { e.preventDefault(); phoneAnswer(+p.dataset.c); } });
 
 // ══════════════════════════════════════════════════════════════
 function chooseHTML() {
