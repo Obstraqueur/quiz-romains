@@ -2555,7 +2555,7 @@ const players = () => JEUNES.filter(j => G.cfg.present[j]);
 const SAL = () => G.cfg.salves[G.s];
 const offset = s => G.cfg.salves.slice(0, s).reduce((a, x) => a + (+x.n), 0);
 const qOf = (J, s = G.s, i = G.i) => QB[J][G.qs[J][offset(s) + i]];
-const qkey = () => `${G.gid}-${G.s}-${G.i}`;
+const qkey = () => `${G.gid}-${G.s}-${G.i}-${G.qn || 0}`;   // qn : change à chaque lancement (même question relancée = nouveau chrono)
 function save() { G.ts = Date.now(); store(GKEY, G); }
 
 // ── tirage : d'abord les rouges (les plus ratées), puis les jamais vues, puis orange, puis vert ──
@@ -2611,7 +2611,7 @@ const salveDone = s => played(s) >= +G.cfg.salves[s].n;
 const firstTodo = () => { const k = G.cfg.salves.findIndex((_, s) => !salveDone(s)); return k < 0 ? null : k; };
 function recalc() { const sc = Object.fromEntries(JEUNES.map(j => [j, (G.adj && G.adj[j]) || 0])); for (const h of G.hist) for (const J in h.r) sc[J] += h.r[J].pts + h.r[J].b; G.score = sc; }
 function showRev(i, mini) { G.i = i; G.last = histAt(G.s, i); G.ans = {}; G.scr = 'rev'; fastMini = mini ? true : fastMini; }
-function openQ() { G.scr = 'q'; G.ans = {}; G.last = null; G.dur = +SAL().sec; G.startAt = Date.now(); fastMini = null; save(); render(); pubState(); }
+function openQ() { G.qn = (G.qn || 0) + 1; G.scr = 'q'; G.ans = {}; G.last = null; G.dur = +SAL().sec; G.startAt = Date.now(); fastMini = null; save(); render(); pubState(); }
 function closeQ() {
   if (G.scr !== 'q') return; const sal = SAL(); const r = {};
   for (const J of players()) { const q = qOf(J); const a = G.ans[J];
