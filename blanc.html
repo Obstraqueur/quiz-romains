@@ -2676,7 +2676,7 @@ function blockHTML(J, k, place) {
   head += '</div>';
   const body = `<div class="blk-q fit">${esc(q.q)}</div>${optsHTML(J, q, rev)}`;
   const fk = qkey() + '|' + J; const fresh = !FLIPPED.has(fk); if (!rev && a) FLIPPED.add(fk);
-  const flip = !rev && a ? `<div class="flip" ${fresh ? '' : 'style="animation:none"'}><div class="nm">${esc(J)}</div><div class="ck">✅</div><div class="lb">Réponse donnée en</div><div class="tm">${fmtS(a.el)}</div></div>` : '';
+  const flip = !rev && a ? `<div class="flip" ${fresh ? '' : 'style="animation:none"'}><div class="nm">${esc(J)}</div><div class="lb">Réponse donnée en</div><div class="tm">${fmtS(a.el)}</div></div>` : '';
   return `<div class="blk" style="${place}" data-j="${esc(J)}">${head}${body}${flip}</div>`;
 }
 function topbar(extra) {
@@ -2866,7 +2866,7 @@ function phoneHTML() {
     const qi = P.q && P.q[ME]; if (!qi) return `<div class="ph">${top(scoreTag)}<div class="ph-msg"><h2>…</h2></div></div>`;
     const tag = `<span class="pill">Salve ${P.s + 1} · ${P.i + 1}/${P.n}</span>`;
     const answered = PH.mine != null || (P.ans && P.ans[ME]);
-    if (answered) return `<div class="ph">${top(tag)}<div class="ph-msg"><div class="big">✅</div><h2>Réponse envoyée</h2>${PH.sent ? `<p>en ${fmtS(PH.sent.el)}</p>` : ''}<p style="font-size:15px">${P.ans && P.ans[ME] ? 'Bien reçue par l’écran ✓' : 'Envoi…'}</p></div></div>`;
+    if (answered) return `<div class="ph">${top(tag)}<div class="ph-msg"><h2>Réponse envoyée</h2>${PH.sent ? `<p>en ${fmtS(PH.sent.el)}</p>` : ''}<p style="font-size:15px">${P.ans && P.ans[ME] ? 'Bien reçue par l’écran' : 'Envoi…'}</p></div></div>`;
     const el = performance.now() - PH.t0; if (el > P.dur * 1000) return `<div class="ph">${top(tag)}<div class="ph-msg"><div class="big">⏱</div><h2>Temps écoulé</h2></div></div>`;
     const vis = P.visio[ME] && qi.o;
     return `<div class="ph">${top(tag)}<div class="ph-bar"><i id="pbar"></i></div>${vis ? `<div class="ph-q">${esc(qi.q)}</div>` : ''}
