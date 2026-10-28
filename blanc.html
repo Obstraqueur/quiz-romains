@@ -2534,7 +2534,7 @@ let HRTT = null;              // latence de l'écran vers le serveur
 const FLIPPED = new Set();
 let hnet = null, showSet = false, fastMini = null, testRes = null;
 function newGame(old) {
-  const cfg = old ? old.cfg : { salves: DEF_SALVES.map(s => ({ ...s })), visio: { Ruth: true, Terence: true }, present: Object.fromEntries(JEUNES.map(j => [j, true])), exclVE: true, sound: true };
+  const cfg = old ? old.cfg : { salves: DEF_SALVES.map(s => ({ ...s })), visio: { Ruth: true, Terence: true }, present: Object.fromEntries(JEUNES.map(j => [j, true])), exclVE: false, veV2: true, sound: true };
   return { gid: uid(), cfg, qs: null, mix: null, scr: 'setup', s: 0, i: 0, startAt: 0, dur: 0, ans: {}, last: null, hist: [], score: Object.fromEntries(JEUNES.map(j => [j, 0])), prev: null, ts: Date.now() };
 }
 const players = () => JEUNES.filter(j => G.cfg.present[j]);
@@ -2724,7 +2724,7 @@ function setupHTML(inGame) {
         ${inGame ? `<td><b>${G.score[J]}</b> <button class="btn alt" style="padding:4px 10px" data-act="adj" data-j="${J}" data-v="-1">−1</button> <button class="btn alt" style="padding:4px 10px" data-act="adj" data-j="${J}" data-v="1">+1</button></td>` : `<td style="font-size:13px">${persoTxt(J)}</td><td style="font-size:13px">${mix(J)}</td>`}</tr>`).join('')}</table>
       <p class="hint" style="color:#666;margin:8px 0 0">En visio = oui : la question et les réponses s’affichent aussi sur son téléphone. Sinon le téléphone n’a que les 4 cases de couleur.</p></div>
     <div class="panel"><h2>Salves</h2><table><tr><th></th><th>Questions</th><th>Secondes</th><th>Bonne</th><th>Erreur</th><th>Pas répondu</th><th>⚡ 3 plus rapides</th></tr>${sal}</table>
-      <label class="row" style="margin-top:10px;font-size:15px"><input type="checkbox" data-act="exclVE" ${C.exclVE ? 'checked' : ''} ${inGame ? 'disabled' : ''}> Exclure les questions « Version exacte » (4 versets entiers : trop long à lire sur l’écran partagé)</label>
+      <label class="row" style="margin-top:10px;font-size:15px"><input type="checkbox" data-act="exclVE" ${C.exclVE ? 'checked' : ''} ${inGame ? 'disabled' : ''}> Exclure les questions « Version exacte » (réponses = versets entiers, plus longues à lire)</label>
       <label class="row" style="margin-top:6px;font-size:15px"><input type="checkbox" data-act="sound" ${C.sound ? 'checked' : ''}> Sons sur le grand écran</label></div>
     ${inGame ? `<div class="panel"><div class="row"><button class="btn alt" data-act="lobby">Retour à l’écran de connexion</button><button class="btn red" data-act="reset">Recommencer un nouveau quiz blanc</button></div></div>` :
     `<div class="panel"><h2>Lancer</h2><p class="hint" style="color:#666">Les questions sont tirées dans les banques de l’app perso (${JEUNES.map(J => QUIZ[J].length).join(' / ')} questions), sur les textes entiers (tous les versets), en priorité les rouges (les plus ratées d’abord), puis celles jamais faites, puis orange, puis vertes. Les apps perso doivent avoir été ouvertes une fois pour que leur progression arrive ici.</p>
@@ -2735,8 +2735,9 @@ function setupHTML(inGame) {
 function fitAll() { // réduit le texte jusqu'à ce qu'il tienne : d'abord la question, puis les réponses
   document.querySelectorAll('.blk').forEach(b => {
     const q = b.querySelector('.blk-q'); const os = [...b.querySelectorAll('.opt')]; if (!q) return; const W = b.clientWidth;
-    q.style.maxHeight = os.length === 2 ? '58%' : '40%';
-    let fq = W / 15; q.style.fontSize = fq + 'px'; let n = 0;
+    const long = os.reduce((n, o) => n + o.textContent.length, 0) > 280;   // réponses longues (versets entiers) : la question laisse la place
+    q.style.maxHeight = os.length === 2 ? '58%' : long ? '17%' : '40%';
+    let fq = long ? W / 24 : W / 15; q.style.fontSize = fq + 'px'; let n = 0;
     while (q.scrollHeight > q.clientHeight + 1 && n++ < 50) { fq *= .94; q.style.fontSize = fq + 'px'; }
     let fo = Math.min(W / (os.length === 2 ? 13 : 19), fq * 1.1); const setO = () => os.forEach(o => { o.querySelector('.ot').style.fontSize = fo + 'px'; });
     setO(); n = 0; while (os.some(o => { const t = o.querySelector('.ot'); return o.scrollHeight > o.clientHeight + 1 || o.scrollWidth > o.clientWidth + 1 || t.scrollWidth > t.clientWidth + 1 || t.scrollHeight > t.clientHeight + 1; }) && n++ < 50) { fo *= .94; setO(); }
@@ -2881,6 +2882,7 @@ window.addEventListener('resize', () => { if (ROLE === 'host' && G && (G.scr ===
 function boot() {
   if (ROLE === 'host') {
     const s = store(GKEY); G = s && s.cfg && s.gid ? s : newGame();
+    if (!G.cfg.veV2) { G.cfg.veV2 = true; G.cfg.exclVE = false; if (G.scr === 'setup') G.qs = null; save(); }   // « Version exacte » incluses par défaut
     if (G.scr === 'q' && Date.now() - G.startAt > G.dur * 1000 + GRACE) closeQ();
     hnet = new Net([BASE + '/ans/+', BASE + '/hello/+', PBASE + '/eleve/+'], hostMsg, () => { if (hnet && hnet.count()) pubState(); if (G.scr === 'setup' || showSet) render(); });
     hnet.connect(); let first = true;
