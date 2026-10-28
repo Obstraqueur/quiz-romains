@@ -19,7 +19,7 @@ h1,h2,h3{margin:0}
 .who{display:grid;gap:12px;margin-top:18px}
 .who button{background:#fff;color:var(--ink);border-radius:16px;padding:18px;font-size:22px;font-weight:800;text-align:left;box-shadow:0 4px 0 rgba(0,0,0,.25)}
 .who button small{display:block;font-weight:500;font-size:14px;color:var(--muted)}
-.who button.scr{background:transparent;color:#fff;border:2px dashed rgba(255,255,255,.4);box-shadow:none;font-size:17px}
+.who button.scrb{background:transparent;color:#fff;border:2px dashed rgba(255,255,255,.4);box-shadow:none;font-size:17px}
 .ph{position:fixed;inset:0;display:flex;flex-direction:column;padding:max(10px,env(safe-area-inset-top)) 10px max(10px,env(safe-area-inset-bottom))}
 .ph-top{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px;padding:4px 4px 8px}
 .ph-top .grow{flex:1}
@@ -34,6 +34,7 @@ h1,h2,h3{margin:0}
 .ph-q{background:#fff;color:var(--ink);border-radius:14px;padding:12px 14px;font-weight:700;font-size:clamp(16px,4.6vw,22px);line-height:1.3;margin-bottom:10px}
 .ph-msg{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;padding:20px}
 .ph-msg .big{font-size:64px;line-height:1}
+.wt{animation:spin 2.4s ease-in-out infinite}@keyframes spin{50%{transform:rotate(180deg)}}
 .ph-msg h2{font-size:28px}
 .ph-msg p{font-size:18px;color:#ddd8f5;margin:0}
 .res-ok{background:var(--ok)}.res-ko{background:var(--ko)}.res-nr{background:#5b5675}
@@ -2535,7 +2536,7 @@ const FLIPPED = new Set();
 let hnet = null, showSet = false, fastMini = null, testRes = null;
 function newGame(old) {
   const cfg = old ? old.cfg : { salves: DEF_SALVES.map(s => ({ ...s })), visio: { Ruth: true, Terence: true }, present: Object.fromEntries(JEUNES.map(j => [j, true])), exclVE: false, veV2: true, sound: true };
-  return { gid: uid(), cfg, qs: null, mix: null, scr: 'setup', s: 0, i: 0, startAt: 0, dur: 0, ans: {}, last: null, hist: [], score: Object.fromEntries(JEUNES.map(j => [j, 0])), prev: null, ts: Date.now() };
+  return { gid: uid(), cfg, qs: null, mix: null, scr: 'setup', s: 0, i: 0, startAt: 0, dur: 0, ans: {}, last: null, hist: [], score: Object.fromEntries(JEUNES.map(j => [j, 0])), adj: {}, pick: 0, prev: null, ts: Date.now() };
 }
 const players = () => JEUNES.filter(j => G.cfg.present[j]);
 const SAL = () => G.cfg.salves[G.s];
@@ -2570,7 +2571,7 @@ function pubState() {
     visio: G.cfg.visio, present: G.cfg.present, score: G.score, rank: ranking().map(r => r.J), q: {}, ans: {}, rev: null, rules: sal };
   if (G.qs && (G.scr === 'q' || G.scr === 'rev')) for (const J of players()) { const q = qOf(J); st.q[J] = G.cfg.visio[J] ? { n: q.o.length, q: q.q, o: q.o } : { n: q.o.length }; }
   for (const J in G.ans) st.ans[J] = 1;
-  if (G.scr === 'rev' && G.last) { st.rev = {}; for (const J in G.last.r) { const x = G.last.r[J]; const q = qOf(J); st.rev[J] = { c: x.c, r: q.r, pts: x.pts, b: x.b, el: x.el, ro: G.cfg.visio[J] ? q.o[q.r] : null }; } }
+  if (G.scr === 'rev' && G.last) { st.rev = {}; for (const J in G.last.r) { if (!JEUNES.includes(J)) continue; const x = G.last.r[J]; const q = qOf(J); st.rev[J] = { c: x.c, r: q.r, pts: x.pts, b: x.b, el: x.el, ro: G.cfg.visio[J] ? q.o[q.r] : null }; } }
   hnet.pub(BASE + '/state', st, true);
 }
 function hostMsg(t, m) {
@@ -2591,6 +2592,12 @@ const HID = uid();
 function hostHello() { if (hnet) hnet.pub(BASE + '/hello/ecran', { t: Date.now(), from: HID }); }
 
 // ── déroulé ──
+const histAt = (s, i) => G.hist.find(h => h.s === s && h.i === i);
+const played = s => G.hist.filter(h => h.s === s).length;
+const salveDone = s => played(s) >= +G.cfg.salves[s].n;
+const firstTodo = () => { const k = G.cfg.salves.findIndex((_, s) => !salveDone(s)); return k < 0 ? null : k; };
+function recalc() { const sc = Object.fromEntries(JEUNES.map(j => [j, (G.adj && G.adj[j]) || 0])); for (const h of G.hist) for (const J in h.r) sc[J] += h.r[J].pts + h.r[J].b; G.score = sc; }
+function showRev(i, mini) { G.i = i; G.last = histAt(G.s, i); G.ans = {}; G.scr = 'rev'; fastMini = mini ? true : fastMini; }
 function openQ() { G.scr = 'q'; G.ans = {}; G.last = null; G.dur = +SAL().sec; G.startAt = Date.now(); fastMini = null; save(); render(); pubState(); }
 function closeQ() {
   if (G.scr !== 'q') return; const sal = SAL(); const r = {};
@@ -2599,28 +2606,45 @@ function closeQ() {
     else r[J] = { c: a.c, el: a.el, pts: a.c === q.r ? +sal.ok : +sal.ko, b: 0 }; }
   const fast = Object.entries(r).filter(([J, x]) => x.c >= 0 && x.c === qOf(J).r).sort((a, b) => a[1].el - b[1].el).slice(0, 3);
   if (+sal.bonus) fast.forEach(([J]) => { r[J].b = +sal.bonus; });
-  for (const J in r) G.score[J] += r[J].pts + r[J].b;
-  G.last = { r, fast: +sal.bonus ? fast.map(([J, x]) => [J, x.el]) : [] };
-  G.hist.push({ s: G.s, i: G.i, r: Object.fromEntries(Object.entries(r).map(([J, x]) => [J, { ...x, id: G.qs[J][offset() + G.i] }])) });
+  for (const J in r) r[J].id = G.qs[J][offset() + G.i];
+  G.hist = G.hist.filter(h => !(h.s === G.s && h.i === G.i));
+  const entry = { s: G.s, i: G.i, r, fast: +sal.bonus ? fast.map(([J, x]) => [J, x.el]) : [] };
+  G.hist.push(entry); recalc(); G.last = entry;
   G.scr = 'rev'; save(); render(); pubState(); if (G.cfg.sound) SND.reveal();
   if (G.last.fast.length) { fastMini = false; setTimeout(() => { if (G.scr === 'rev') { fastMini = true; const f = $('.fast'); if (f) f.classList.add('mini'); } }, 3500); }
 }
 function ranking(sc = G.score) { return players().map(J => ({ J, sc: sc[J] })).sort((a, b) => b.sc - a.sc || a.J.localeCompare(b.J)); }
+function startSalve(s) { G.s = s; G.i = 0; G.scr = 'intro'; save(); render(); pubState(); }
 function next() {
   if (showSet) return;
   const sal = SAL();
   switch (G.scr) {
-    case 'setup': if (!G.qs) prepare(); G.scr = 'lobby'; break;
-    case 'lobby': G.scr = 'intro'; G.s = 0; G.i = 0; break;
-    case 'intro': G.i = 0; G.prev = { ...G.score }; openQ(); return;
+    case 'setup': if (!G.qs) prepare(); G.scr = 'lobby'; G.pick = firstTodo(); break;
+    case 'lobby': { const k = G.pick != null && !salveDone(G.pick) ? G.pick : firstTodo(); if (k == null) { G.scr = 'end'; break; } startSalve(k); return; }
+    case 'intro': { G.prev = { ...G.score }; const k = played(G.s); if (k >= +sal.n) { showRev(+sal.n - 1, true); break; } G.i = k; openQ(); return; }
     case 'q': closeQ(); return;
     case 'rev':
+      if (histAt(G.s, G.i + 1)) { showRev(G.i + 1, true); break; }   // on revient vers l'avant dans des questions déjà jouées
       if ((G.i + 1) % 10 === 0 || G.i + 1 >= +sal.n) { G.scr = 'score'; save(); render(); pubState(); if (G.cfg.sound) SND.board(); return; }
       G.i++; openQ(); return;
     case 'score':
       G.prev = { ...G.score };
-      if (G.i + 1 >= +sal.n) { if (G.s < G.cfg.salves.length - 1) { G.s++; G.i = 0; G.scr = 'intro'; } else G.scr = 'end'; break; }
+      if (G.i + 1 >= +sal.n) { const k = firstTodo(); if (k == null) G.scr = 'end'; else { G.scr = 'lobby'; G.pick = k; } break; }
+      if (histAt(G.s, G.i + 1)) { showRev(G.i + 1, true); break; }
       G.i++; openQ(); return;
+    default: return;
+  }
+  save(); render(); pubState();
+}
+function prev() {
+  if (showSet) return;
+  switch (G.scr) {
+    case 'lobby': G.scr = 'setup'; break;
+    case 'intro': G.scr = 'lobby'; G.pick = G.s; break;
+    case 'q': G.ans = {}; if (G.i > 0 && histAt(G.s, G.i - 1)) showRev(G.i - 1, true); else G.scr = 'intro'; break;   // la question en cours est annulée
+    case 'rev': if (G.i > 0 && histAt(G.s, G.i - 1)) showRev(G.i - 1, true); else G.scr = 'intro'; break;
+    case 'score': showRev(G.i, true); break;
+    case 'end': G.scr = 'score'; break;
     default: return;
   }
   save(); render(); pubState();
@@ -2659,7 +2683,7 @@ function topbar(extra) {
   const sal = SAL(); const ps = players();
   return `<div class="topbar"><span>Salve ${G.s + 1}</span><span class="tag">Question ${G.i + 1} / ${sal.n}</span><span class="tag">⏱ ${sal.sec} s</span><span class="tag">✓ ${sgn(+sal.ok)} · ✗ ${sgn(+sal.ko)}${+sal.nr ? ' · ⏱ ' + sgn(+sal.nr) : ''}${+sal.bonus ? ` · ⚡ 3 plus rapides ${sgn(+sal.bonus)}` : ''}</span><span class="grow"></span>${extra || ''}${G.scr === 'q' ? `<span class="tag">${ps.filter(j => G.ans[j]).length} / ${ps.length} ont répondu</span>` : ''}</div>`;
 }
-function ctrlHTML(label) { return `<div class="ctrl"><button data-act="set">⚙︎ Réglages</button><button class="nx" data-act="next">${label || 'Suivant'} →</button></div>`; }
+function ctrlHTML(label) { return `<div class="ctrl"><button data-act="set">⚙︎ Réglages</button><button data-act="prev">← Précédent</button><button class="nx" data-act="next">${label || 'Suivant'} →</button></div>`; }
 function hostHTML() {
   if (showSet) return setupHTML(true);
   const sal = SAL();
@@ -2671,14 +2695,16 @@ function hostHTML() {
       return `<div class="scr"><div class="center"><div class="mega">Quiz blanc</div>
         <div class="row" style="gap:3vw;justify-content:center"><div class="qr">${qr}</div><div style="text-align:left;font-size:clamp(16px,1.8vw,36px);font-weight:800">Sur ton téléphone :<br><span class="mono" style="font-size:.8em;color:#ffe680">${esc(url.replace(/^https?:\/\//, ''))}</span><br>puis choisis ton prénom</div></div>
         <div class="lob">${JEUNES.map(J => { const on = SEEN[J] && Date.now() - SEEN[J].at < 9000; return `<div class="lt ${G.cfg.present[J] ? '' : 'off'}"><b><span class="dot ${on ? 'on' : ''}"></span> ${esc(J)}</b><span>${G.cfg.present[J] ? (G.cfg.visio[J] ? '📹 en visio' : '⛪ sur place') : 'absent'}${on && SEEN[J].rtt ? ` · 📶 ${SEEN[J].rtt} ms` : ''}</span></div>`; }).join('')}</div>
-        <div class="press">Appuie sur → quand tout le monde est connecté</div></div>${ctrlHTML()}</div>`; }
+        <div class="row" style="gap:1.2vw;justify-content:center">${G.cfg.salves.map((x, k) => { const d = salveDone(k), p = played(k), sel = G.pick === k && !d;
+          return `<button data-act="pick" data-s="${k}" style="border-radius:1vw;padding:1.4vh 1.6vw;font-weight:900;font-size:clamp(14px,1.5vw,30px);background:${d ? 'rgba(255,255,255,.15)' : sel ? '#ffe680' : '#fff'};color:${d ? '#cfc9ef' : 'var(--bg)'};${sel ? 'outline:4px solid #fff;' : ''}">Salve ${k + 1}<br><span style="font-size:.6em;font-weight:700">${x.n} q · ${x.sec} s · ${d ? '✓ terminée' : p ? p + '/' + x.n + ' jouées' : 'à jouer'}</span></button>`; }).join('')}</div>
+        <div class="press">${G.pick != null && !salveDone(G.pick) ? `→ pour lancer la salve ${G.pick + 1} (ou clique sur une autre salve)` : firstTodo() == null ? '→ classement final' : 'Choisis une salve'}</div></div>${ctrlHTML()}</div>`; }
     case 'intro': return `<div class="scr"><div class="center"><div class="mega">Salve ${G.s + 1}</div>
         <div class="rules"><div class="rule"><b>${sal.n}</b><span>questions</span></div><div class="rule"><b>${sal.sec} s</b><span>par question</span></div>
         <div class="rule"><b style="color:var(--ok)">${sgn(+sal.ok)}</b><span>bonne réponse</span></div><div class="rule"><b style="color:${+sal.ko < 0 ? 'var(--ko)' : 'var(--muted)'}">${sgn(+sal.ko)}</b><span>erreur</span></div>
         <div class="rule"><b style="color:var(--muted)">${sgn(+sal.nr)}</b><span>pas de réponse</span></div>${+sal.bonus ? `<div class="rule"><b style="color:#c99400">⚡ ${sgn(+sal.bonus)}</b><span>3 plus rapides (bonne réponse)</span></div>` : ''}</div>
-        <div class="press">Appuie sur → pour lancer la première question</div></div>${ctrlHTML('Commencer')}</div>`;
+        <div class="press">Appuie sur → pour lancer ${played(G.s) ? 'la suite (question ' + (played(G.s) + 1) + ')' : 'la première question'}</div></div>${ctrlHTML('Commencer')}</div>`;
     case 'q': case 'rev': {
-      const ps = players(); const gs = gridStyle(ps.length);
+      const ps = G.scr === 'rev' && G.last ? JEUNES.filter(j => G.last.r[j]) : players(); const gs = gridStyle(ps.length);
       let fast = '';
       if (G.scr === 'rev' && G.last && G.last.fast.length) fast = `<div class="fast ${fastMini ? 'mini' : ''}"><h3>⚡ Les 3 plus rapides</h3>${G.last.fast.map(([J, el], k) => `<div class="fr"><span>${k + 1}. ${esc(J)}</span><span style="color:var(--muted)">${fmtS(el)}</span><span class="p1">+${SAL().bonus}</span></div>`).join('')}</div>`;
       else if (G.scr === 'rev' && +SAL().bonus) fast = `<div class="fast ${fastMini === false ? '' : 'mini'}"><h3>⚡ Personne n’a trouvé la bonne réponse</h3></div>`;
@@ -2702,7 +2728,7 @@ function boardHTML() {
   }
   return `<div class="scr"><div class="topbar"><span>${esc(title)}</span><span class="grow"></span><span class="tag">Salve ${G.s + 1}</span></div>
     <div class="board" style="height:${n * H}vh;margin-top:2vh">${rows}</div>${extra}
-    ${end ? '' : `<div class="press" style="text-align:center;margin-top:2vh">${finSalve ? (G.s < G.cfg.salves.length - 1 ? `→ pour passer à la salve ${G.s + 2}` : '→ pour le classement final') : '→ question suivante'}</div>`}${ctrlHTML()}</div>`;
+    ${end ? '' : `<div class="press" style="text-align:center;margin-top:2vh">${finSalve ? (firstTodo() != null ? '→ pour choisir la salve suivante' : '→ pour le classement final') : '→ question suivante'}</div>`}${ctrlHTML()}</div>`;
 }
 function animateBoard() {
   const rows = document.querySelectorAll('.brow'); if (!rows.length) return; const H = parseFloat(rows[0].style.height) / .82;
@@ -2726,7 +2752,7 @@ function setupHTML(inGame) {
     <div class="panel"><h2>Salves</h2><table><tr><th></th><th>Questions</th><th>Secondes</th><th>Bonne</th><th>Erreur</th><th>Pas répondu</th><th>⚡ 3 plus rapides</th></tr>${sal}</table>
       <label class="row" style="margin-top:10px;font-size:15px"><input type="checkbox" data-act="exclVE" ${C.exclVE ? 'checked' : ''} ${inGame ? 'disabled' : ''}> Exclure les questions « Version exacte » (réponses = versets entiers, plus longues à lire)</label>
       <label class="row" style="margin-top:6px;font-size:15px"><input type="checkbox" data-act="sound" ${C.sound ? 'checked' : ''}> Sons sur le grand écran</label></div>
-    ${inGame ? `<div class="panel"><div class="row"><button class="btn alt" data-act="lobby">Retour à l’écran de connexion</button><button class="btn red" data-act="reset">Recommencer un nouveau quiz blanc</button></div></div>` :
+    ${inGame ? `<div class="panel"><div class="row"><button class="btn alt" data-act="lobby">Écran de connexion / choix de la salve</button><button class="btn red" data-act="reset">Recommencer un nouveau quiz blanc</button></div></div>` :
     `<div class="panel"><h2>Lancer</h2><p class="hint" style="color:#666">Les questions sont tirées dans les banques de l’app perso (${JEUNES.map(J => QUIZ[J].length).join(' / ')} questions), sur les textes entiers (tous les versets), en priorité les rouges (les plus ratées d’abord), puis celles jamais faites, puis orange, puis vertes. Les apps perso doivent avoir été ouvertes une fois pour que leur progression arrive ici.</p>
       <div class="row"><button class="btn alt" data-act="prep">🎲 ${G.qs ? 'Re-tirer' : 'Tirer'} les questions</button><button class="btn" data-act="next">Ouvrir la salle →</button><button class="btn alt" data-act="test">🔬 Tester les serveurs</button></div>
       ${testRes ? `<div style="margin-top:10px;font-size:14px">${testRes}</div>` : ''}</div>`}
@@ -2754,11 +2780,13 @@ function hostTick() {
 function hostAct(el, ev) {
   const a = el.dataset.act; const C = G.cfg;
   if (a === 'next') next();
+  else if (a === 'prev') prev();
+  else if (a === 'pick') { const k = +el.dataset.s; if (!salveDone(k)) startSalve(k); }
   else if (a === 'set') { showSet = !showSet; render(); }
   else if (a === 'tg') { C[el.dataset.k][el.dataset.j] = el.dataset.v === '1'; if (el.dataset.k === 'present' && !players().length) C.present[el.dataset.j] = true; save(); render(); pubState(); }
   else if (a === 'prep') { prepare(); render(); }
-  else if (a === 'adj') { G.score[el.dataset.j] += +el.dataset.v; G.prev && (G.prev[el.dataset.j] += +el.dataset.v); save(); render(); pubState(); }
-  else if (a === 'lobby') { showSet = false; G.scr = 'lobby'; save(); render(); pubState(); }
+  else if (a === 'adj') { G.adj = G.adj || {}; G.adj[el.dataset.j] = (G.adj[el.dataset.j] || 0) + +el.dataset.v; G.prev && (G.prev[el.dataset.j] += +el.dataset.v); recalc(); save(); render(); pubState(); }
+  else if (a === 'lobby') { showSet = false; G.scr = 'lobby'; G.pick = firstTodo(); save(); render(); pubState(); }
   else if (a === 'reset') { if (confirm('Effacer les scores et recommencer un nouveau quiz blanc ?')) { G = newGame(G); showSet = false; save(); render(); pubState(); } }
   else if (a === 'test') runTest();
 }
@@ -2771,6 +2799,7 @@ document.addEventListener('change', e => {
 document.addEventListener('keydown', e => {
   if (ROLE !== 'host' || e.target.tagName === 'INPUT') return;
   if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); next(); }
+  else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); prev(); }
   else if (e.key === 'Escape' && G.scr !== 'setup') { showSet = !showSet; render(); }
   else if (e.key.toLowerCase() === 'f') { if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {}); else document.exitFullscreen(); }
 });
@@ -2828,8 +2857,9 @@ setInterval(() => { // renvoi tant que l'écran n'a pas confirmé
 }, 900);
 function phoneHTML() {
   const top = (extra) => `<div class="ph-top"><span class="dot ${pnet && pnet.count() ? 'on' : ''}"></span><span>${esc(ME)}</span><span class="grow"></span>${extra || ''}</div>`;
-  if (!P) return `<div class="ph">${top()}<div class="ph-msg"><div class="big">📡</div><h2>Connexion…</h2><p>Attends que l’écran principal soit ouvert.</p></div></div>`;
-  if (!P.present[ME]) return `<div class="ph">${top()}<div class="ph-msg"><div class="big">💤</div><h2>Tu es noté absent</h2><p>Demande à Edmond de t’ajouter.</p></div></div>`;
+  const wait = (sub, extra) => `<div class="ph">${top(extra)}<div class="ph-msg"><div class="big wt">⏳</div><h2>En attente de nouvelles questions</h2><p>${sub}</p><p style="font-size:14px;opacity:.8">Garde cette page ouverte : la question s’affichera toute seule.</p></div></div>`;
+  if (!P) return wait(pnet && pnet.count() ? 'Le quiz blanc n’a pas encore commencé.' : 'Connexion au serveur…');
+  if (!P.present[ME]) return wait('Tu es noté absent sur l’écran : demande à Edmond de te mettre « présent ».');
   const score = P.score ? P.score[ME] : 0; const rk = P.rank ? P.rank.indexOf(ME) + 1 : 0;
   const scoreTag = `<span class="pill">${score} pts${rk ? ' · ' + rk + (rk === 1 ? 'er' : 'e') : ''}</span>`;
   if (P.scr === 'q') {
@@ -2848,9 +2878,10 @@ function phoneHTML() {
     return `<div class="ph ${cls}">${top(scoreTag)}<div class="ph-msg"><div class="big">${x.c < 0 ? '⏱' : ok ? '🎉' : '❌'}</div><h2>${x.c < 0 ? 'Pas de réponse' : ok ? 'Bonne réponse !' : 'Mauvaise réponse'}</h2>
       <p style="font-size:44px;font-weight:900;color:#fff">${sgn(x.pts)}${x.b ? ` <span style="color:#ffe680">⚡+${x.b}</span>` : ''}</p>${x.el != null ? `<p>en ${fmtS(x.el)}</p>` : ''}${x.ro ? `<p>Réponse : <b>${esc(x.ro)}</b></p>` : ''}<p>Regarde le grand écran 👀</p></div></div>`;
   }
-  const msg = { lobby: ['👋', 'Tu es connecté !', 'Le quiz blanc va commencer. Regarde le grand écran.'], intro: ['🚦', `Salve ${P.s + 1}`, `${P.rules.n} questions · ${P.rules.sec} s · bonne ${sgn(+P.rules.ok)} · erreur ${sgn(+P.rules.ko)}${+P.rules.bonus ? ` · ⚡ 3 plus rapides ${sgn(+P.rules.bonus)}` : ''}`],
-    score: ['📊', 'Classement', 'Regarde le grand écran 👀'], end: ['🏆', 'Fin du quiz blanc !', `Tu termines ${rk}${rk === 1 ? 'er' : 'e'} avec ${score} points.`], setup: ['⏳', 'En attente', 'Edmond prépare le quiz blanc.'] }[P.scr] || ['⏳', '…', ''];
-  return `<div class="ph">${top(P.scr === 'setup' ? '' : scoreTag)}<div class="ph-msg"><div class="big">${msg[0]}</div><h2>${esc(msg[1])}</h2><p>${esc(msg[2])}</p>${P.visio[ME] ? '<p class="pill">📹 mode visio : questions affichées ici</p>' : ''}</div></div>`;
+  if (P.scr === 'intro') return wait(`Salve ${P.s + 1} : ${P.rules.n} questions · ${P.rules.sec} s · bonne ${sgn(+P.rules.ok)} · erreur ${sgn(+P.rules.ko)}${+P.rules.bonus ? ` · ⚡ 3 plus rapides ${sgn(+P.rules.bonus)}` : ''}`, scoreTag);
+  if (P.scr === 'score') return wait('Classement sur le grand écran 👀', scoreTag);
+  if (P.scr === 'end') return `<div class="ph">${top(scoreTag)}<div class="ph-msg"><div class="big">🏆</div><h2>Fin du quiz blanc !</h2><p>Tu termines ${rk}${rk === 1 ? 'er' : 'e'} avec ${score} points.</p></div></div>`;
+  return wait(P.visio[ME] ? '📹 Mode visio : les questions et les réponses s’afficheront ici.' : 'Regarde le grand écran : ici tu n’auras que les 4 couleurs.', P.scr === 'setup' || P.scr === 'lobby' ? '' : scoreTag);
 }
 function phoneTick() {
   if (!P || P.scr !== 'q') return; const b = document.getElementById('pbar');
@@ -2864,7 +2895,7 @@ document.addEventListener('pointerdown', e => { if (ROLE !== 'phone') return; co
 function chooseHTML() {
   return `<div class="wrap"><div style="padding:24px 0 0"><h1 style="font-size:30px">🎯 Quiz blanc</h1><p class="hint" style="font-size:17px">Qui es-tu ?</p></div>
     <div class="who">${JEUNES.map(J => `<button data-act="who" data-j="${J}">${esc(J)}<small>${esc(TEXTE_DE[J])}</small></button>`).join('')}
-    <button class="scr" data-act="who" data-j="ecran">🖥 Écran principal (Edmond)</button></div></div>`;
+    <button class="scrb" data-act="who" data-j="ecran">🖥 Écran principal (Edmond)</button></div></div>`;
 }
 function render() {
   const app = $('#app');
@@ -2883,6 +2914,8 @@ function boot() {
   if (ROLE === 'host') {
     const s = store(GKEY); G = s && s.cfg && s.gid ? s : newGame();
     if (!G.cfg.veV2) { G.cfg.veV2 = true; G.cfg.exclVE = false; if (G.scr === 'setup') G.qs = null; save(); }   // « Version exacte » incluses par défaut
+    G.adj = G.adj || {}; recalc();
+    if (G.scr === 'rev' && !G.last) G.last = histAt(G.s, G.i) || null;
     if (G.scr === 'q' && Date.now() - G.startAt > G.dur * 1000 + GRACE) closeQ();
     hnet = new Net([BASE + '/ans/+', BASE + '/hello/+', PBASE + '/eleve/+'], hostMsg, () => { if (hnet && hnet.count()) pubState(); if (G.scr === 'setup' || showSet) render(); });
     hnet.connect(); let first = true;
