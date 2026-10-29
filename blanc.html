@@ -2976,7 +2976,7 @@ function boot() {
     G.adj = G.adj || {}; recalc();
     if (G.qs) for (const h of G.hist) for (const J in h.r) if (!h.r[J].id) h.r[J].id = G.qs[J][offset(h.s) + h.i];   // réparation des parties enregistrées avant le correctif
     if (G.qs) for (const J of JEUNES) { const cur = new Set(QUIZ[J].map(q => q.id)); const used = new Set(G.qs[J]); const done = new Set(G.hist.filter(h => h.r[J]).map(h => h.r[J].id));
-      const spare = shuffle(QUIZ[J].filter(q => !used.has(q.id))).map(q => q.id);
+      const rank = { r: 0, n: 1, o: 2, g: 3 }; const spare = shuffle(QUIZ[J].filter(q => !used.has(q.id) && !(G.cfg.exclVE && q.cat === 'Version exacte'))).map(q => { const [st, av] = statusOf(J, q.id); return { id: q.id, k: rank[st] * 10 + av }; }).sort((x, y) => y.k - x.k).map(x => x.id);   // pop() = la plus rouge
       G.qs[J] = G.qs[J].map(id => cur.has(id) || done.has(id) ? id : (spare.pop() || id)); }
     if (G.scr === 'rev' && !G.last) G.last = histAt(G.s, G.i) || null;
     if (G.scr === 'q' && Date.now() - G.startAt > G.dur * 1000 + GRACE) closeQ();
