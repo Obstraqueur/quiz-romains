@@ -2590,7 +2590,7 @@ function pubState() {
 function hostMsg(t, m) {
   if (t.startsWith(PBASE + '/eleve/')) { if (m && JEUNES.includes(m.J) && (!PERSO[m.J] || (PERSO[m.J].at || 0) <= (m.at || 0))) { PERSO[m.J] = m; if (G.scr === 'setup' && !showSet) render(); } return; }
   const sub = t.slice(BASE.length + 1);
-  if (sub.startsWith('hello/')) { const J = sub.slice(6); if (J === 'ecran') { if (m.from === HID) HRTT = Date.now() - m.t; return; } if (JEUNES.includes(J)) { const was = SEEN[J] && Date.now() - SEEN[J].at < 9000; SEEN[J] = { at: Date.now(), rtt: m.rtt }; if (!was && (G.scr === 'lobby' || G.scr === 'setup')) render(); } return; }
+  if (sub.startsWith('hello/')) { const J = sub.slice(6); if (J === 'ecran') { if (m.from === HID) HRTT = Date.now() - m.t; return; } if (JEUNES.includes(J)) { const was = SEEN[J] && Date.now() - SEEN[J].at < 9000; SEEN[J] = { at: Date.now(), rtt: m.rtt, k: m.k, scr: m.scr }; if (!was && (G.scr === 'lobby' || G.scr === 'setup')) render(); } return; }
   if (sub.startsWith('ans/')) {
     const J = sub.slice(4); if (!JEUNES.includes(J) || G.scr !== 'q' || m.key !== qkey() || G.ans[J] || !G.cfg.present[J]) return;
     const hostEl = Date.now() - G.startAt; if (hostEl > G.dur * 1000 + 1500) return;
@@ -2602,6 +2602,8 @@ function hostMsg(t, m) {
   }
 }
 const HID = uid();
+function synced(J) { const x = SEEN[J]; return !x || !x.scr || (x.scr === G.scr && (G.scr !== 'q' && G.scr !== 'rev' || x.k === qkey())); }
+function reloadPhones() { hnet.pub(BASE + '/cmd', { reload: Date.now(), gid: G.gid }); }
 function hostHello() { if (hnet) hnet.pub(BASE + '/hello/ecran', { t: Date.now(), from: HID }); }
 
 // ── déroulé ──
@@ -2758,8 +2760,8 @@ function setupHTML(inGame) {
   return `<div class="overlay" style="${inGame ? '' : 'background:none;position:static'}"><div class="wrap" style="max-width:980px">
     <div class="row" style="justify-content:space-between;margin:6px 0 4px"><h1 style="font-size:28px">🎛 Quiz blanc — réglages</h1>${inGame ? '<button class="btn" data-act="set">Fermer ✕</button>' : ''}</div>
     <p class="hint">Lien des jeunes : <b class="mono">${esc((location.origin + location.pathname).replace(/^https?:\/\//, ''))}</b> · écran : ?moi=ecran · serveurs : ${hnet ? hnet.count() : 0}/2 connectés${HRTT != null ? ` · 📶 écran ${HRTT} ms` : ''}</p>
-    <div class="panel"><h2>Jeunes</h2><table><tr><th>Prénom</th><th>Présent</th><th>En visio</th><th>Téléphone</th>${inGame ? '<th>Score</th>' : '<th>Progression perso (questions)</th><th>Tirées : rouge + jamais faites + orange + vert</th>'}</tr>
-      ${JEUNES.map(J => `<tr><td><b>${esc(J)}</b><br><span class="hint" style="color:#888">${esc(TEXTE_DE[J])}</span></td><td>${tg('present', J, C.present[J])}</td><td>${tg('visio', J, C.visio[J])}</td><td><span class="dot ${on(J) ? 'on' : ''}"></span> ${on(J) ? (SEEN[J].rtt ? SEEN[J].rtt + ' ms' : 'connecté') : 'hors ligne'}</td>
+    <div class="panel"><div class="row" style="justify-content:space-between"><h2>Jeunes</h2><button class="btn alt" data-act="reload">🔄 Actualiser tous les téléphones</button></div><table><tr><th>Prénom</th><th>Présent</th><th>En visio</th><th>Téléphone</th>${inGame ? '<th>Score</th>' : '<th>Progression perso (questions)</th><th>Tirées : rouge + jamais faites + orange + vert</th>'}</tr>
+      ${JEUNES.map(J => `<tr><td><b>${esc(J)}</b><br><span class="hint" style="color:#888">${esc(TEXTE_DE[J])}</span></td><td>${tg('present', J, C.present[J])}</td><td>${tg('visio', J, C.visio[J])}</td><td><span class="dot ${on(J) ? 'on' : ''}"></span> ${on(J) ? (SEEN[J].rtt ? SEEN[J].rtt + ' ms' : 'connecté') + (synced(J) ? ' · <span class="c-g">✓ synchro</span>' : ' · <span class="c-r">⚠ décalé</span>') : 'hors ligne'}</td>
         ${inGame ? `<td><b>${G.score[J]}</b> <button class="btn alt" style="padding:4px 10px" data-act="adj" data-j="${J}" data-v="-1">−1</button> <button class="btn alt" style="padding:4px 10px" data-act="adj" data-j="${J}" data-v="1">+1</button></td>` : `<td style="font-size:13px">${persoTxt(J)}</td><td style="font-size:13px">${mix(J)}</td>`}</tr>`).join('')}</table>
       <p class="hint" style="color:#666;margin:8px 0 0">En visio = oui : la question et les réponses s’affichent aussi sur son téléphone. Sinon le téléphone n’a que les 4 cases de couleur.</p></div>
     <div class="panel"><h2>Salves</h2><table><tr><th></th><th>Questions</th><th>Secondes</th><th>Bonne</th><th>Erreur</th><th>Pas répondu</th><th>⚡ 3 plus rapides</th></tr>${sal}</table>
@@ -2797,6 +2799,7 @@ function hostAct(el, ev) {
   else if (a === 'pick') { const k = +el.dataset.s; if (!salveDone(k)) startSalve(k); }
   else if (a === 'set') { showSet = !showSet; render(); }
   else if (a === 'tg') { C[el.dataset.k][el.dataset.j] = el.dataset.v === '1'; if (el.dataset.k === 'present' && !players().length) C.present[el.dataset.j] = true; save(); render(); pubState(); }
+  else if (a === 'reload') { reloadPhones(); el.textContent = '🔄 Envoyé : les téléphones se rechargent…'; setTimeout(render, 4000); }
   else if (a === 'prep') { prepare(); render(); }
   else if (a === 'adj') { G.adj = G.adj || {}; G.adj[el.dataset.j] = (G.adj[el.dataset.j] || 0) + +el.dataset.v; G.prev && (G.prev[el.dataset.j] += +el.dataset.v); recalc(); save(); render(); pubState(); }
   else if (a === 'lobby') { showSet = false; G.scr = 'lobby'; G.pick = firstTodo(); save(); render(); pubState(); }
@@ -2849,7 +2852,8 @@ async function runTest() {
 let P = null;      // dernier état reçu
 let pnet = null; const PH = { key: null, t0: 0, sent: null, mine: null, rtt: null, helloT: 0, lastRev: null };
 function phoneMsg(t, m) {
-  const sub = t.slice(BASE.length + 1);
+  const sub = t.slice(BASE.length + 1); lastMsg = Date.now();
+  if (sub === 'cmd') { if (m && m.reload > LOADED + 3000 && Date.now() - m.reload < 60000) location.reload(); return; }
   if (sub === 'hello/' + ME) { if (m.from === PID && PH.lastPt !== m.pt) { PH.lastPt = m.pt; PH.rtt = Math.round(performance.now() - m.pt); } return; }
   if (sub !== 'state' || !m || !m.gid) return;
   if (P && P.pubAt > m.pubAt) return;   // doublon d'un autre serveur ou ancien état
@@ -2859,7 +2863,9 @@ function phoneMsg(t, m) {
   if (!prev || prev.scr !== m.scr || prev.key !== m.key || (prev.ans && prev.ans[ME]) !== (m.ans && m.ans[ME]) || JSON.stringify(prev.visio) !== JSON.stringify(m.visio) || JSON.stringify(prev.present) !== JSON.stringify(m.present)) render();
 }
 const PID = uid();
-function phoneHello() { if (pnet) pnet.pub(BASE + '/hello/' + ME, { from: PID, pt: performance.now(), rtt: PH.rtt }); }
+function phoneHello() { if (pnet) pnet.pub(BASE + '/hello/' + ME, { from: PID, pt: performance.now(), rtt: PH.rtt, k: P && P.key, scr: P && P.scr }); }
+const LOADED = Date.now(); let lastMsg = Date.now();
+function phoneResync() { try { pnet.cl.forEach(c => c.end(true)); } catch (e) {} pnet.connect(); lastMsg = Date.now(); }
 function phoneAnswer(c) {
   if (!P || P.scr !== 'q' || PH.mine != null) return; const el = performance.now() - PH.t0; if (el > P.dur * 1000) return;
   PH.mine = c; PH.sent = { key: P.key, c, el: Math.round(el) }; if (navigator.vibrate) navigator.vibrate(30);
@@ -2944,11 +2950,13 @@ function boot() {
     hnet = new Net([BASE + '/ans/+', BASE + '/hello/+', PBASE + '/eleve/+'], hostMsg, () => { if (hnet && hnet.count()) pubState(); if (G.scr === 'setup' || showSet) render(); });
     hnet.connect(); let first = true;
     setInterval(() => { if (hnet.count() && first) { first = false; pubState(); } }, 500);
-    setInterval(hostTick, 100); setInterval(hostHello, 4000); setInterval(() => { if (G.scr === 'lobby' && !showSet) render(); }, 3000);
+    setInterval(hostTick, 100); setInterval(() => { hostHello(); if (hnet.count()) pubState(); if (showSet) render(); }, 4000); setInterval(() => { if (G.scr === 'lobby' && !showSet) render(); }, 3000);
     keepAwake(); render();
   } else if (ROLE === 'phone') {
-    pnet = new Net([BASE + '/state', BASE + '/hello/' + ME], phoneMsg, () => { render(); phoneHello(); });
+    pnet = new Net([BASE + '/state', BASE + '/hello/' + ME, BASE + '/cmd'], phoneMsg, () => { render(); phoneHello(); });
     pnet.connect(); setInterval(phoneHello, 4000); setInterval(phoneTick, 100);
+    setInterval(() => { if (Date.now() - lastMsg > 10000) phoneResync(); }, 3000);   // plus rien reçu depuis 10 s : on se reconnecte
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - lastMsg > 5000) phoneResync(); });
     document.addEventListener('pointerdown', () => keepAwake(), { once: true }); keepAwake(); render();
   } else render();
 }
