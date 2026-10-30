@@ -2642,7 +2642,8 @@ function canEditN(k) { return G.cfg.salves.every((_, j) => j <= k || played(j) =
 function errItems(J) {
   return G.hist.filter(h => h.r[J] && QB[J][h.r[J].id] && h.r[J].c !== QB[J][h.r[J].id].r).sort((a, b) => a.s - b.s || a.i - b.i).map(h => ({ id: h.r[J].id, s: h.s, i: h.i, c: h.r[J].c }));
 }
-function pubErr() { if (!hnet) return; for (const J of JEUNES) hnet.pub(BASE + '/err/' + J, { gid: G.gid, at: Date.now(), items: errItems(J) }, true); }
+function pubErr(force) { if (!hnet || (!G.hist.length && !force)) return;   // une partie sans aucune question jouée ne publie rien (n'efface pas la fiche d'une autre partie)
+  for (const J of JEUNES) hnet.pub(BASE + '/err/' + J, { gid: G.gid, at: Date.now(), items: errItems(J) }, true); }
 function errRow(J, x) { const q = QB[J][x.id];
   return `<div class="er"><div class="er-h">Salve ${x.s + 1} · question ${x.i + 1} · ${esc(q.cat)}</div><div class="er-q">${esc(q.q)}</div>
     <div class="er-a ko">${x.c < 0 ? '⏱ Pas de réponse' : '✗ ' + brk(q.o[x.c])}</div><div class="er-a ok">✓ ${brk(q.o[q.r])}</div></div>`; }
@@ -2830,7 +2831,7 @@ function hostAct(el, ev) {
   else if (a === 'prep') { prepare(); render(); }
   else if (a === 'adj') { G.adj = G.adj || {}; G.adj[el.dataset.j] = (G.adj[el.dataset.j] || 0) + +el.dataset.v; G.prev && (G.prev[el.dataset.j] += +el.dataset.v); recalc(); save(); render(); pubState(); }
   else if (a === 'lobby') { showSet = false; G.scr = 'lobby'; G.pick = firstTodo(); save(); render(); pubState(); }
-  else if (a === 'reset') { if (confirm('Effacer les scores et recommencer un nouveau quiz blanc ?')) { G = newGame(G); showSet = false; save(); render(); pubState(); pubErr(); } }
+  else if (a === 'reset') { if (confirm('Effacer les scores et recommencer un nouveau quiz blanc ?')) { G = newGame(G); showSet = false; save(); render(); pubState(); } }
   else if (a === 'test') runTest();
 }
 document.addEventListener('change', e => {

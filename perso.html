@@ -789,7 +789,10 @@ const CLOUD_BROKERS = QS.get('broker') ? QS.get('broker').split(',') : ['wss://b
 const CTOPIC = 'qbperso/' + PERSO_ROOM + '/eleve/' + (ME || 'x');
 const ETOPIC = 'qbblanc/' + (QS.get('blanc') || 'blanc-2026') + '/err/' + (ME || 'x');   // erreurs du quiz blanc
 let BLERR = null; try { BLERR = JSON.parse(localStorage.getItem('qb_blerr_' + ME)); } catch (e) {}
-function onBlErr(m) { if (!m || !m.items || (BLERR && (BLERR.at || 0) > m.at)) return; BLERR = m; try { localStorage.setItem('qb_blerr_' + ME, JSON.stringify(m)); } catch (e) {} if (view !== 'qrun' && view !== 'run') render(); }
+function onBlErr(m) {   // on garde la fiche de chaque partie : une partie vide ne remplace jamais une fiche existante
+  if (!m || !m.items) return; if (!m.items.length && BLERR && BLERR.items && BLERR.items.length) return;
+  if (BLERR && BLERR.gid === m.gid && (BLERR.at || 0) > m.at) return;
+  BLERR = m; try { localStorage.setItem('qb_blerr_' + ME, JSON.stringify(m)); if (m.items.length) localStorage.setItem('qb_blerr_' + ME + '_' + m.gid, JSON.stringify(m)); } catch (e) {} if (view !== 'qrun' && view !== 'run') render(); }
 function blErrIds() { if (!BLERR) return []; const have = new Set((QUIZ[ME] || []).map(q => q.id)); return [...new Set(BLERR.items.map(x => x.id))].filter(id => have.has(id)); }
 function blErrHTML() {
   const ids = blErrIds(); if (!ids.length) return '';
